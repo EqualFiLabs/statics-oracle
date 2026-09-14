@@ -606,8 +606,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - grace period is active.
     - _Requirements: 7.2, 7.3, 13.10_
 
-- [ ] 19. Build Basket NAV tests
-  - [ ] 19.1 Create NAV test suite
+- [x] 19. Build Basket NAV tests
+  - [x] 19.1 Create NAV test suite
     - **New file:** `test/unit/StaticsOracle.Nav.t.sol`
     - Cover:
       - single asset,
@@ -622,7 +622,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - >16 assets.
     - _Requirements: 9.1-9.7, 13.11_
 
-  - [ ] 19.2 Test invalid component propagation
+  - [x] 19.2 Test invalid component propagation
     - Prove that one:
       - stale,
       - paused,
@@ -632,7 +632,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       component invalidates strict NAV.
     - _Requirements: 9.7, 13.7-13.11_
 
-  - [ ] 19.3 Test representative Statics Basket
+  - [x] 19.3 Test representative Statics Basket
     - Example:
       ```text
       0.1 NVDA
@@ -644,7 +644,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
 
 ## Checkpoint D
 
-- [ ] 20. Checkpoint: deterministic safety coverage
+- [x] 20. Checkpoint: deterministic safety coverage
   - Run all unit suites.
   - Confirm every explicit `OracleStatus` and strict custom error has coverage.
   - Confirm Stock Token multiplier regression tests exist.
@@ -652,8 +652,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
   - Confirm invalid oracle conditions cannot produce successful NAV.
   - _Requirements: 12, 13_
 
-- [ ] 21. Add fuzz and property testing
-  - [ ] 21.1 Fuzz normalization math
+- [x] 21. Add fuzz and property testing
+  - [x] 21.1 Fuzz normalization math
     - **New file:** `test/fuzz/OracleMath.t.sol`
     - Fuzz:
       - amount,
@@ -663,7 +663,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Bound values to supported ranges.
     - _Requirements: 13.3, 13.4_
 
-  - [ ] 21.2 Prove NAV additivity
+  - [x] 21.2 Prove NAV additivity
     - **New file:** `test/fuzz/NavProperties.t.sol`
     - Prove:
       ```text
@@ -674,18 +674,18 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       subject only to defined rounding.
     - _Requirements: 9.2, 9.3, 13.11_
 
-  - [ ] 21.3 Prove address isolation
+  - [x] 21.3 Prove address isolation
     - **New file:** `test/fuzz/AddressIsolation.t.sol`
     - Generate arbitrary lookalike tokens.
     - Prove same ticker/name cannot inherit approved configuration.
     - _Requirements: 2.3-2.6, 13.1_
 
-  - [ ] 21.4 Prove wrapper isolation
+  - [x] 21.4 Prove wrapper isolation
     - Test arbitrary economically equivalent wrapper mocks.
     - Prove an approved WBTC-style token does not make an unapproved BTC wrapper priceable.
     - _Requirements: 5.1-5.7, 13.2_
 
-  - [ ] 21.5 Prove registry version monotonicity
+  - [x] 21.5 Prove registry version monotonicity
     - Fuzz valid sequences of admin actions.
     - Assert exactly one version increment for each successful mutation.
     - _Requirements: 10.7, 11.1-11.7_
