@@ -7,6 +7,20 @@ import { StaticsOracle } from "src/StaticsOracle.sol";
 import { IStaticsOracle } from "src/interfaces/IStaticsOracle.sol";
 import { OracleFeedTestMock, OracleTokenTestMock } from "test/mocks/OracleTestMocks.sol";
 
+contract StrictErrorMappingHarness is StaticsOracle {
+    constructor(
+        address initialOwner
+    ) StaticsOracle(initialOwner) { }
+
+    function forceUnexpectedStatus(
+        address token
+    ) external view {
+        _revertForStatus(
+            token, PriceData({ price1e18: 0, updatedAt: 0, roundId: 0, status: OracleStatus.VALID })
+        );
+    }
+}
+
 contract StaticsOraclePriceTest is Test {
     string internal constant DESCRIPTION = "PRICE / USD";
 
@@ -136,6 +150,18 @@ contract StaticsOraclePriceTest is Test {
             )
         );
         oracle.priceUsd(address(token));
+    }
+
+    function test_DefensiveUnexpectedStatusHasDeterministicError() external {
+        StrictErrorMappingHarness harness = new StrictErrorMappingHarness(address(this));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StaticsOracle.UnexpectedOracleStatus.selector,
+                address(token),
+                IStaticsOracle.OracleStatus.VALID
+            )
+        );
+        harness.forceUnexpectedStatus(address(token));
     }
 
     function _assertStatus(
