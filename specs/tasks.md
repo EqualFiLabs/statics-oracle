@@ -280,8 +280,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Return `price1e18`.
     - _Requirements: 8.1-8.4_
 
-- [ ] 8. Implement strict consumer-facing pricing
-  - [ ] 8.1 Implement `peekPrice`
+- [x] 8. Implement strict consumer-facing pricing
+  - [x] 8.1 Implement `peekPrice`
     - Return diagnostic `PriceData` without forcing callers to parse reverts.
     - Include:
       - normalized price where available,
@@ -290,19 +290,19 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - explicit `OracleStatus`.
     - _Requirements: 8.3, 8.4, 12.1-12.10_
 
-  - [ ] 8.2 Implement `priceUsd`
+  - [x] 8.2 Implement `priceUsd`
     - Strictly require `OracleStatus.VALID`.
     - Map all other statuses into deterministic custom errors.
     - Do not return stale or paused prices as successful results.
     - _Requirements: 8.1-8.7, 12.1-12.10_
 
-  - [ ] 8.3 Implement `valueUsd`
+  - [x] 8.3 Implement `valueUsd`
     - Price the exact token.
     - Apply raw token amount and token decimals.
     - Use `OracleMath`.
     - _Requirements: 8.1-8.7, 9.2, 9.4_
 
-  - [ ] 8.4 Prohibit fallback pricing
+  - [x] 8.4 Prohibit fallback pricing
     - Verify no path exists from invalid Chainlink price to:
       - DEX spot,
       - token symbol,
@@ -310,8 +310,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - another provider.
     - _Requirements: 5.1-5.7, 8.6, 8.7, 14.4_
 
-- [ ] 9. Implement Basket NAV aggregation
-  - [ ] 9.1 Implement `basketNav`
+- [x] 9. Implement Basket NAV aggregation
+  - [x] 9.1 Implement `basketNav`
     - Add:
       ```solidity
       basketNav(
@@ -325,17 +325,17 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - <= 16 assets.
     - _Requirements: 9.1-9.7_
 
-  - [ ] 9.2 Reject duplicate Basket assets
+  - [x] 9.2 Reject duplicate Basket assets
     - Reject duplicate token addresses in a single NAV calculation.
     - Preserve parity with Statics Basket creation invariants.
     - _Requirements: 9.1, 9.6_
 
-  - [ ] 9.3 Optimize sequencer validation
+  - [x] 9.3 Optimize sequencer validation
     - Check sequencer once per Basket NAV call.
     - Do not perform one sequencer feed call per underlying.
     - _Requirements: 7.2, 7.3, 9.1-9.7_
 
-  - [ ] 9.4 Aggregate fixed underlying amounts
+  - [x] 9.4 Aggregate fixed underlying amounts
     - For each component:
       ```text
       componentUsd =
@@ -347,7 +347,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
 
 ## Checkpoint B
 
-- [ ] 10. Checkpoint: complete onchain oracle behavior
+- [x] 10. Checkpoint: complete onchain oracle behavior
   - Run all deterministic unit tests.
   - Confirm:
     - lifecycle gating works,
