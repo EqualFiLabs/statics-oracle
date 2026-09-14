@@ -70,3 +70,14 @@ node scripts/generate-whitelist.mjs --block <verified-block>
 For byte-for-byte reproduction, also pass the checked-in `generatedAt` value through
 `--generated-at`. The generator fails on missing source rows, identity disagreement,
 missing bytecode, metadata mismatch, invalid rounds, stale answers, or paused stock oracles.
+
+Verify the checked-in manifest without modifying it:
+
+```bash
+node scripts/verify-whitelist.mjs
+```
+
+Identity, missing-contract, decimal, description-hash, and invalid-round findings are hard
+failures. Non-identity directory metadata changes and unresolved candidate-risk gates are
+reported as review warnings. Source drift is never applied automatically. Pass `--block`
+to reproduce a historical verification against an archive-capable RPC.

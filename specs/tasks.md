@@ -460,8 +460,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Fail rather than silently omitting a requested asset.
     - _Requirements: 11.1-11.7_
 
-- [ ] 13. Build whitelist verification tooling
-  - [ ] 13.1 Implement live manifest verifier
+- [x] 13. Build whitelist verification tooling
+  - [x] 13.1 Implement live manifest verifier
     - **New file:** `scripts/verify-whitelist.mjs`
     - Compare checked-in manifest against:
       - Robinhood registry,
@@ -469,7 +469,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - Robinhood Chain contracts.
     - _Requirements: 3.1-3.9, 11.6, 11.7_
 
-  - [ ] 13.2 Detect canonical source drift
+  - [x] 13.2 Detect canonical source drift
     - Report:
       - changed token address,
       - changed feed proxy,
@@ -480,7 +480,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Do not automatically rewrite production configuration.
     - _Requirements: 10.5, 10.6, 11.7_
 
-  - [ ] 13.3 Distinguish warnings from hard failures
+  - [x] 13.3 Distinguish warnings from hard failures
     - Hard fail:
       - identity mismatch,
       - missing canonical contract,
@@ -494,7 +494,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
 
 ## Checkpoint C
 
-- [ ] 14. Checkpoint: reproducible whitelist
+- [x] 14. Checkpoint: reproducible whitelist
   - Regenerate the manifest.
   - Re-run live verification.
   - Compare generated output to checked-in output.
