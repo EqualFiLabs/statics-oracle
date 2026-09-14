@@ -502,8 +502,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
   - Confirm candidate crypto assets remain unavailable for strict production pricing.
   - _Requirements: 2, 3, 5, 10, 11_
 
-- [ ] 15. Build full configuration and lifecycle unit tests
-  - [ ] 15.1 Create configuration test suite
+- [x] 15. Build full configuration and lifecycle unit tests
+  - [x] 15.1 Create configuration test suite
     - **New file:** `test/unit/StaticsOracle.Config.t.sol`
     - Test:
       - valid registration,
@@ -518,7 +518,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - invalid Stock/ETF pause configuration.
     - _Requirements: 3.7-3.9, 10.1-10.6, 13.9_
 
-  - [ ] 15.2 Test lifecycle state machine
+  - [x] 15.2 Test lifecycle state machine
     - Cover:
       - `UNSET -> CANDIDATE`,
       - `CANDIDATE -> ENABLED`,
@@ -528,14 +528,14 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - configuration mutation while enabled.
     - _Requirements: 10.1-10.6_
 
-  - [ ] 15.3 Test registry versioning
+  - [x] 15.3 Test registry versioning
     - Assert every successful admin mutation increments version exactly once.
     - Assert failed changes do not increment.
     - Assert view/price calls do not increment.
     - _Requirements: 10.7, 11.1-11.7_
 
-- [ ] 16. Build price validation tests
-  - [ ] 16.1 Create price test suite
+- [x] 16. Build price validation tests
+  - [x] 16.1 Create price test suite
     - **New file:** `test/unit/StaticsOracle.Price.t.sol`
     - Test:
       - valid answer,
@@ -548,7 +548,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - failed feed call.
     - _Requirements: 6.1-6.9, 12.2-12.5, 13.7_
 
-  - [ ] 16.2 Test lifecycle-aware pricing
+  - [x] 16.2 Test lifecycle-aware pricing
     - Verify:
       - unregistered token fails,
       - candidate fails,
@@ -556,13 +556,13 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - enabled succeeds.
     - _Requirements: 8.5, 10.1-10.4, 12.1_
 
-  - [ ] 16.3 Test diagnostic versus strict behavior
+  - [x] 16.3 Test diagnostic versus strict behavior
     - `peekPrice()` returns explicit status.
     - `priceUsd()` reverts on any non-valid status.
     - _Requirements: 8.3-8.6, 12.1-12.10_
 
-- [ ] 17. Build stock-specific regression tests
-  - [ ] 17.1 Create stock test suite
+- [x] 17. Build stock-specific regression tests
+  - [x] 17.1 Create stock test suite
     - **New file:** `test/unit/StaticsOracle.Stock.t.sol`
     - Test:
       - normal Stock Token price,
@@ -570,12 +570,12 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - failed `oraclePaused()` call.
     - _Requirements: 4.1-4.7, 13.7_
 
-  - [ ] 17.2 Prove `uiMultiplier()` is not double-applied
+  - [x] 17.2 Prove `uiMultiplier()` is not double-applied
     - Build a mock whose multiplier changes independently.
     - Verify Statics arithmetic depends only on the feed answer.
     - _Requirements: 4.2-4.4, 13.5_
 
-  - [ ] 17.3 Test dividend continuity scenario
+  - [x] 17.3 Test dividend continuity scenario
     - Simulate:
       - underlying reference unchanged,
       - multiplier increases,
@@ -583,13 +583,13 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Verify Statics uses the already-adjusted feed price once.
     - _Requirements: 4.2-4.4, 13.6_
 
-  - [ ] 17.4 Test split continuity scenario
+  - [x] 17.4 Test split continuity scenario
     - Simulate representative share-price and multiplier changes.
     - Verify Basket token-value calculation remains economically continuous according to Chainlink output.
     - _Requirements: 4.2-4.4, 13.6_
 
-- [ ] 18. Build sequencer tests
-  - [ ] 18.1 Create sequencer test suite
+- [x] 18. Build sequencer tests
+  - [x] 18.1 Create sequencer test suite
     - **New file:** `test/unit/StaticsOracle.Sequencer.t.sol`
     - Cover:
       - missing config,
@@ -600,7 +600,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - malformed feed behavior.
     - _Requirements: 7.1-7.5, 12.7, 12.8, 13.10_
 
-  - [ ] 18.2 Verify strict price gating
+  - [x] 18.2 Verify strict price gating
     - Prove an otherwise valid price fails while:
       - sequencer is down,
       - grace period is active.
