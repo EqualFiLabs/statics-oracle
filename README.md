@@ -47,3 +47,11 @@ forge test
 
 Live Robinhood validation is deliberately separate from deterministic local and pull-request
 checks. Never commit RPC URLs, credentials, or signer material.
+
+## Production release gates
+
+Production configuration must use an independently verified canonical Robinhood Chain
+sequencer uptime-feed proxy and an explicitly reviewed recovery grace period. Neither value
+is assumed by the contracts or this repository while the canonical feed remains unresolved.
+Asset-specific feed heartbeats and `maxAge` policies must likewise be sourced and reviewed
+before an asset is enabled; placeholder safety parameters are not acceptable.

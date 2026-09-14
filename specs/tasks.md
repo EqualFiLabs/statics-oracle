@@ -22,8 +22,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
 
 # Tasks
 
-- [ ] 1. Bootstrap the `statics-oracle` Foundry project
-  - [ ] 1.1 Initialize Foundry project structure
+- [x] 1. Bootstrap the `statics-oracle` Foundry project
+  - [x] 1.1 Initialize Foundry project structure
     - **New files:**
       - `foundry.toml`
       - `remappings.txt`
@@ -37,13 +37,13 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Do not hardcode private RPC URLs or secrets.
     - _Requirements: 1.1, 1.4, 1.5_
 
-  - [ ] 1.2 Add minimal dependencies
+  - [x] 1.2 Add minimal dependencies
     - Add `forge-std`.
     - Add OpenZeppelin Contracts for `Ownable2Step`, `Math.mulDiv`, and standard utilities where appropriate.
     - Avoid adding unnecessary oracle frameworks or upgradeability libraries.
     - _Requirements: 14.1-14.7_
 
-  - [ ] 1.3 Create repository README skeleton
+  - [x] 1.3 Create repository README skeleton
     - **New file:** `README.md`
     - Document:
       - project purpose,
@@ -53,8 +53,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - explicit non-goals.
     - _Requirements: 1.1-1.3, 14.1-14.7_
 
-- [ ] 2. Define interfaces, enums, and shared data structures
-  - [ ] 2.1 Create Chainlink V3 interface
+- [x] 2. Define interfaces, enums, and shared data structures
+  - [x] 2.1 Create Chainlink V3 interface
     - **New file:** `src/interfaces/IAggregatorV3.sol`
     - Include:
       - `decimals()`
@@ -63,7 +63,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Keep the interface minimal.
     - _Requirements: 3.2, 3.7, 3.9, 6.1-6.9_
 
-  - [ ] 2.2 Create Robinhood Stock Token interface
+  - [x] 2.2 Create Robinhood Stock Token interface
     - **New file:** `src/interfaces/IRobinhoodStockToken.sol`
     - Include:
       - `oraclePaused()`
@@ -72,7 +72,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Ensure production pricing logic does not depend on `uiMultiplier()`.
     - _Requirements: 4.1-4.7, 13.5, 13.6_
 
-  - [ ] 2.3 Create Statics oracle consumer interface
+  - [x] 2.3 Create Statics oracle consumer interface
     - **New file:** `src/interfaces/IStaticsOracle.sol`
     - Define:
       - `AssetKind`
@@ -89,7 +89,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
         - `registryVersion()`
     - _Requirements: 8.1-8.7, 9.1-9.8, 10.1-10.8, 12.1-12.10_
 
-  - [ ] 2.4 Define administrative configuration input types
+  - [x] 2.4 Define administrative configuration input types
     - Add a configuration input struct suitable for registration and controlled updates.
     - Include:
       - feed,
@@ -102,8 +102,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Do not use symbol/name as a security-critical input.
     - _Requirements: 2.1-2.7, 3.8, 3.9, 11.2_
 
-- [ ] 3. Implement normalization and valuation math
-  - [ ] 3.1 Create `OracleMath`
+- [x] 3. Implement normalization and valuation math
+  - [x] 3.1 Create `OracleMath`
     - **New file:** `src/libraries/OracleMath.sol`
     - Implement:
       - feed-answer normalization to `1e18`,
@@ -111,13 +111,13 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Use full-precision multiplication where required.
     - _Requirements: 8.1, 8.2, 9.2, 9.4, 9.5_
 
-  - [ ] 3.2 Enforce supported decimal bounds
+  - [x] 3.2 Enforce supported decimal bounds
     - Reject unsupported token/feed decimal configurations rather than silently truncating or overflowing.
     - Initial implementation SHOULD support decimal counts up to `18`.
     - Add explicit custom errors for unsupported decimal values.
     - _Requirements: 3.8, 3.9, 8.2_
 
-  - [ ] 3.3 Add OracleMath unit tests
+  - [x] 3.3 Add OracleMath unit tests
     - **New file:** `test/unit/OracleMath.t.sol`
     - Cover:
       - 6-decimal tokens,
@@ -130,8 +130,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - rounding behavior.
     - _Requirements: 13.3, 13.4_
 
-- [ ] 4. Implement the authoritative oracle registry and lifecycle
-  - [ ] 4.1 Create `StaticsOracle`
+- [x] 4. Implement the authoritative oracle registry and lifecycle
+  - [x] 4.1 Create `StaticsOracle`
     - **New file:** `src/StaticsOracle.sol`
     - Inherit from:
       - `Ownable2Step`
@@ -140,7 +140,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Do not implement symbol-based lookup.
     - _Requirements: 2.1-2.7, 10.1-10.8_
 
-  - [ ] 4.2 Implement asset registration
+  - [x] 4.2 Implement asset registration
     - Add:
       ```solidity
       registerAsset(address token, AssetOracleConfigInput calldata config)
@@ -159,7 +159,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - New assets SHALL enter `CANDIDATE`.
     - _Requirements: 3.1-3.9, 10.1-10.3_
 
-  - [ ] 4.3 Implement lifecycle transitions
+  - [x] 4.3 Implement lifecycle transitions
     - Add:
       - `enableAsset(address)`
       - `disableAsset(address)`
@@ -173,7 +173,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Do not allow material configuration mutation while `ENABLED`.
     - _Requirements: 10.1-10.6_
 
-  - [ ] 4.4 Implement registry versioning
+  - [x] 4.4 Implement registry versioning
     - Add:
       ```solidity
       uint64 public registryVersion;
@@ -183,7 +183,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Include config hash for registrations and updates.
     - _Requirements: 10.7, 11.1-11.7_
 
-  - [ ] 4.5 Implement deterministic custom errors
+  - [x] 4.5 Implement deterministic custom errors
     - Add custom errors covering:
       - unsupported asset,
       - wrong lifecycle state,
@@ -198,7 +198,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
 
 ## Checkpoint A
 
-- [ ] 5. Checkpoint: registry and primitive correctness
+- [x] 5. Checkpoint: registry and primitive correctness
   - Run:
     ```text
     forge fmt --check
@@ -212,8 +212,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - no STATICS or Basket TWAP functionality has entered scope.
   - _Requirements: 2, 8, 10, 14_
 
-- [ ] 6. Implement sequencer safety
-  - [ ] 6.1 Add sequencer configuration storage
+- [x] 6. Implement sequencer safety
+  - [x] 6.1 Add sequencer configuration storage
     - Store:
       - sequencer feed address,
       - recovery grace period.
@@ -224,7 +224,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Validate code exists and feed can be called.
     - _Requirements: 7.1, 7.4, 7.5_
 
-  - [ ] 6.2 Implement internal sequencer evaluator
+  - [x] 6.2 Implement internal sequencer evaluator
     - Implement explicit states:
       - not configured,
       - down,
@@ -235,14 +235,14 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - nonzero = unavailable.
     - _Requirements: 7.2, 7.3, 12.7, 12.8_
 
-  - [ ] 6.3 Add release gate for canonical sequencer feed
+  - [x] 6.3 Add release gate for canonical sequencer feed
     - Do NOT add a guessed Robinhood Chain uptime-feed address.
     - Keep manifest sequencer state unverified until an authoritative source is found.
     - Mainnet production enablement SHALL require an independently verified address.
     - _Requirements: 7.1, 7.4, 7.5_
 
-- [ ] 7. Implement oracle price evaluation
-  - [ ] 7.1 Implement `_evaluatePrice`
+- [x] 7. Implement oracle price evaluation
+  - [x] 7.1 Implement `_evaluatePrice`
     - Create an internal non-reverting evaluation path returning `PriceData`.
     - Evaluate in deterministic order:
       1. lifecycle,
@@ -256,7 +256,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       9. normalization.
     - _Requirements: 4.6, 6.1-6.9, 7.1-7.5, 12.1-12.10_
 
-  - [ ] 7.2 Implement stock and ETF pause handling
+  - [x] 7.2 Implement stock and ETF pause handling
     - For Stock/ETF assets:
       - require pause checking in V1 configuration,
       - call `oraclePaused()`,
@@ -265,7 +265,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Do not use `uiMultiplier()` in valuation.
     - _Requirements: 4.1-4.7, 12.6_
 
-  - [ ] 7.3 Implement Chainlink round validation
+  - [x] 7.3 Implement Chainlink round validation
     - Reject:
       - `answer <= 0`,
       - `updatedAt == 0`,
@@ -275,7 +275,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Preserve round metadata in `PriceData`.
     - _Requirements: 6.1-6.9_
 
-  - [ ] 7.4 Implement feed normalization
+  - [x] 7.4 Implement feed normalization
     - Normalize validated answers using configured feed decimals.
     - Return `price1e18`.
     - _Requirements: 8.1-8.4_
