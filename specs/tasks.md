@@ -690,8 +690,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Assert exactly one version increment for each successful mutation.
     - _Requirements: 10.7, 11.1-11.7_
 
-- [ ] 22. Add Robinhood Chain fork tests
-  - [ ] 22.1 Create live feed fork suite
+- [x] 22. Add Robinhood Chain fork tests
+  - [x] 22.1 Create live feed fork suite
     - **New file:** `test/fork/RobinhoodFeeds.t.sol`
     - For every enabled target:
       - verify token code,
@@ -702,7 +702,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - verify Stock/ETF pause method can be called.
     - _Requirements: 3.7-3.9, 11.4-11.6, 13_
 
-  - [ ] 22.2 Create full whitelist matrix fork suite
+  - [x] 22.2 Create full whitelist matrix fork suite
     - **New file:** `test/fork/WhitelistMatrix.t.sol`
     - Read or derive expected configuration from the checked-in manifest.
     - Avoid duplicating the whitelist in Solidity constants where practical.
@@ -710,6 +710,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - _Requirements: 3.1-3.9, 5.7, 11.1-11.7_
 
   - [ ] 22.3 Add production sequencer fork test only after canonical address resolution
+    - Blocked: official Robinhood documentation publishes a websocket sequencer feed,
+      but no authoritative source currently identifies a canonical onchain uptime-feed proxy.
     - Do not block deterministic local testing on an unverified address.
     - Once resolved:
       - add it to the manifest,
