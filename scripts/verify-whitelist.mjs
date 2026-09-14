@@ -76,6 +76,9 @@ async function main() {
   if (manifest.assets.length !== REQUESTED_ASSETS.length) {
     hardFailures.push(`manifest has ${manifest.assets.length} rows; expected ${REQUESTED_ASSETS.length}`);
   }
+  if (manifest.assetCount !== manifest.assets.length) {
+    hardFailures.push(`manifest assetCount ${manifest.assetCount} does not match assets length`);
+  }
 
   for (const requested of REQUESTED_ASSETS) {
     const row = manifestBySymbol.get(requested.symbol);
