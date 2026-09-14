@@ -359,8 +359,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - invalid component invalidates strict NAV.
   - _Requirements: 4-10, 12-13_
 
-- [ ] 11. Create the machine-readable Robinhood whitelist manifest
-  - [ ] 11.1 Define manifest schema
+- [x] 11. Create the machine-readable Robinhood whitelist manifest
+  - [x] 11.1 Define manifest schema
     - **New file:** `config/robinhood-mainnet.assets.json`
     - Include:
       - schema version,
@@ -373,7 +373,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - asset rows.
     - _Requirements: 11.1-11.7_
 
-  - [ ] 11.2 Seed V1 Stock/ETF matrix
+  - [x] 11.2 Seed V1 Stock/ETF matrix
     - Add the approved target rows from the requirements:
       - AAPL
       - NVDA
@@ -393,7 +393,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Preserve exact token/feed bindings from the reviewed whitelist.
     - _Requirements: 2.7, 11.1-11.7_
 
-  - [ ] 11.3 Seed crypto matrix
+  - [x] 11.3 Seed crypto matrix
     - Add:
       - WETH
       - USDG
@@ -407,7 +407,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Keep the remaining crypto entries as `CANDIDATE`.
     - _Requirements: 5.1-5.7, 10.1-10.4, 11.1-11.7_
 
-  - [ ] 11.4 Record provenance metadata
+  - [x] 11.4 Record provenance metadata
     - Every asset entry SHALL record:
       - token address,
       - feed address,
@@ -418,8 +418,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - lifecycle status.
     - _Requirements: 11.2-11.7_
 
-- [ ] 12. Build whitelist generation tooling
-  - [ ] 12.1 Implement source fetcher
+- [x] 12. Build whitelist generation tooling
+  - [x] 12.1 Implement source fetcher
     - **New file:** `scripts/generate-whitelist.mjs`
     - Fetch:
       - Robinhood `/rhj/assets`,
@@ -427,13 +427,13 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Fail on unavailable or malformed canonical sources.
     - _Requirements: 3.1-3.6, 11.3-11.7_
 
-  - [ ] 12.2 Implement exact Robinhood asset matching
+  - [x] 12.2 Implement exact Robinhood asset matching
     - Resolve requested Stock/ETF rows against the Robinhood asset registry using exact canonical identity.
     - Do not match solely on ticker where ambiguity exists.
     - Reject source disagreement.
     - _Requirements: 2.3-2.7, 3.1, 3.3, 3.5, 3.6_
 
-  - [ ] 12.3 Implement exact Chainlink feed matching
+  - [x] 12.3 Implement exact Chainlink feed matching
     - Resolve expected asset/feed pairs against Chainlink's Robinhood feed directory.
     - Record:
       - proxy,
@@ -443,7 +443,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Fail if expected feed cannot be resolved.
     - _Requirements: 3.2, 3.4, 3.6, 3.9_
 
-  - [ ] 12.4 Implement Robinhood RPC verification
+  - [x] 12.4 Implement Robinhood RPC verification
     - Verify:
       - token bytecode,
       - feed bytecode,
@@ -454,7 +454,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Record verification block.
     - _Requirements: 3.7-3.9, 6.1-6.4, 11.4-11.6_
 
-  - [ ] 12.5 Generate deterministic manifest output
+  - [x] 12.5 Generate deterministic manifest output
     - Sort assets deterministically.
     - Produce stable JSON formatting.
     - Fail rather than silently omitting a requested asset.

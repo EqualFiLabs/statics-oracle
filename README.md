@@ -55,3 +55,18 @@ sequencer uptime-feed proxy and an explicitly reviewed recovery grace period. Ne
 is assumed by the contracts or this repository while the canonical feed remains unresolved.
 Asset-specific feed heartbeats and `maxAge` policies must likewise be sourced and reviewed
 before an asset is enabled; placeholder safety parameters are not acceptable.
+
+## Whitelist generation
+
+The checked-in Robinhood Mainnet manifest is generated from the exact issue-approved
+token/feed matrix, the canonical Robinhood and Chainlink directories, and block-pinned
+contract reads. Its lifecycle values are desired configuration, not evidence of deployment.
+
+```bash
+export ROBINHOOD_MAINNET="<private-rpc-url>"
+node scripts/generate-whitelist.mjs --block <verified-block>
+```
+
+For byte-for-byte reproduction, also pass the checked-in `generatedAt` value through
+`--generated-at`. The generator fails on missing source rows, identity disagreement,
+missing bytecode, metadata mismatch, invalid rounds, stale answers, or paused stock oracles.
