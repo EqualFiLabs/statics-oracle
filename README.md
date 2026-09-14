@@ -53,6 +53,8 @@ checks. Never commit RPC URLs, credentials, or signer material.
 Production configuration must use an independently verified canonical Robinhood Chain
 sequencer uptime-feed proxy and an explicitly reviewed recovery grace period. Neither value
 is assumed by the contracts or this repository while the canonical feed remains unresolved.
+Robinhood's documented websocket sequencer feed is a node-data endpoint, not an onchain
+Chainlink uptime-feed proxy, and cannot be substituted for the required contract address.
 Asset-specific feed heartbeats and `maxAge` policies must likewise be sourced and reviewed
 before an asset is enabled; placeholder safety parameters are not acceptable.
 
@@ -81,3 +83,9 @@ Identity, missing-contract, decimal, description-hash, and invalid-round finding
 failures. Non-identity directory metadata changes and unresolved candidate-risk gates are
 reported as review warnings. Source drift is never applied automatically. Pass `--block`
 to reproduce a historical verification against an archive-capable RPC.
+
+Block-pinned fork tests read the checked-in manifest and skip when the RPC variable is absent:
+
+```bash
+forge test --match-path 'test/fork/*.t.sol'
+```
