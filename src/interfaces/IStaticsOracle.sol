@@ -56,6 +56,11 @@ interface IStaticsOracle {
         bool checkOraclePause;
     }
 
+    struct SequencerConfig {
+        address feed;
+        uint32 gracePeriod;
+    }
+
     struct PriceData {
         uint256 price1e18;
         uint256 updatedAt;
@@ -84,6 +89,8 @@ interface IStaticsOracle {
     function assetConfig(
         address token
     ) external view returns (AssetOracleConfig memory);
+
+    function sequencerConfig() external view returns (SequencerConfig memory);
 
     function registryVersion() external view returns (uint64);
 }

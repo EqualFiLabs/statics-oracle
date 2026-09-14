@@ -35,6 +35,16 @@ contract RegistryFeedMock {
         decimals = decimals_;
         description = description_;
     }
+
+    function latestRoundData() external view returns (uint80, int256, uint256, uint256, uint80) {
+        return (1, 100e8, block.timestamp, block.timestamp, 1);
+    }
+}
+
+contract RegistrySequencerMock {
+    function latestRoundData() external view returns (uint80, int256, uint256, uint256, uint80) {
+        return (1, 0, block.timestamp - 2 hours, block.timestamp, 1);
+    }
 }
 
 contract StaticsOracleRegistryHarness is StaticsOracle {
@@ -63,12 +73,6 @@ contract StaticsOracleRegistryHarness is StaticsOracle {
     ) external pure override returns (uint256) {
         revert PricingUnavailable();
     }
-
-    function peekPrice(
-        address
-    ) external pure override returns (PriceData memory) {
-        revert PricingUnavailable();
-    }
 }
 
 contract StaticsOracleRegistryTest is Test {
@@ -77,12 +81,15 @@ contract StaticsOracleRegistryTest is Test {
     StaticsOracleRegistryHarness internal oracle;
     RegistryTokenMock internal token;
     RegistryFeedMock internal feed;
+    RegistrySequencerMock internal sequencer;
     address internal nonOwner;
 
     function setUp() external {
+        vm.warp(10 days);
         oracle = new StaticsOracleRegistryHarness(address(this));
         token = new RegistryTokenMock(18);
         feed = new RegistryFeedMock(8, FEED_DESCRIPTION);
+        sequencer = new RegistrySequencerMock();
         nonOwner = makeAddr("nonOwner");
     }
 
@@ -112,6 +119,7 @@ contract StaticsOracleRegistryTest is Test {
 
     function test_EnabledBindingCannotMutateSilently() external {
         oracle.registerAsset(address(token), _cryptoInput(address(feed)));
+        _configureHealthySequencer();
         oracle.enableAsset(address(token));
 
         RegistryFeedMock replacement = new RegistryFeedMock(8, "REPLACEMENT / USD");
@@ -128,11 +136,12 @@ contract StaticsOracleRegistryTest is Test {
 
         IStaticsOracle.AssetOracleConfig memory config = oracle.assetConfig(address(token));
         assertEq(config.feed, address(feed));
-        assertEq(oracle.registryVersion(), 2);
+        assertEq(oracle.registryVersion(), 3);
     }
 
     function test_DisableUpdateAndReenableIsExplicitAndVersioned() external {
         oracle.registerAsset(address(token), _cryptoInput(address(feed)));
+        _configureHealthySequencer();
         oracle.enableAsset(address(token));
         oracle.disableAsset(address(token));
 
@@ -142,7 +151,7 @@ contract StaticsOracleRegistryTest is Test {
         IStaticsOracle.AssetOracleConfig memory config = oracle.assetConfig(address(token));
         assertEq(config.feed, address(replacement));
         assertEq(uint8(config.status), uint8(IStaticsOracle.AssetStatus.CANDIDATE));
-        assertEq(oracle.registryVersion(), 4);
+        assertEq(oracle.registryVersion(), 5);
     }
 
     function test_RevertWhen_StockPauseCheckIsNotConfigured() external {
@@ -160,12 +169,17 @@ contract StaticsOracleRegistryTest is Test {
         input.kind = IStaticsOracle.AssetKind.STOCK;
         input.checkOraclePause = true;
         oracle.registerAsset(address(token), input);
+        _configureHealthySequencer();
 
         token.setOraclePaused(true);
         vm.expectRevert(
             abi.encodeWithSelector(StaticsOracle.StockOraclePaused.selector, address(token))
         );
         oracle.enableAsset(address(token));
+    }
+
+    function _configureHealthySequencer() internal {
+        oracle.setSequencerConfig(address(sequencer), 1 hours);
     }
 
     function _cryptoInput(

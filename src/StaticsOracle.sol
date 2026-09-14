@@ -8,14 +8,14 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 import { IAggregatorV3 } from "src/interfaces/IAggregatorV3.sol";
 import { IRobinhoodStockToken } from "src/interfaces/IRobinhoodStockToken.sol";
 import { IStaticsOracle } from "src/interfaces/IStaticsOracle.sol";
+import { OracleMath } from "src/libraries/OracleMath.sol";
 
-/// @notice Authoritative address-keyed registry for Statics external-asset oracles.
-/// @dev Pricing functions are implemented by later stack layers; this layer establishes the
-///      controlled configuration and lifecycle boundary they consume.
+/// @notice Authoritative address-keyed registry and evaluator for Statics external-asset oracles.
 abstract contract StaticsOracle is Ownable2Step, IStaticsOracle {
     uint8 internal constant MAX_SUPPORTED_DECIMALS = 18;
 
     mapping(address token => AssetOracleConfig config) private _assetConfigs;
+    SequencerConfig private _sequencerConfig;
 
     uint64 public override registryVersion;
 
@@ -38,6 +38,8 @@ abstract contract StaticsOracle is Ownable2Step, IStaticsOracle {
     error StockPauseCheckRequired(address token);
     error StockPauseCheckFailed(address token);
     error StockOraclePaused(address token);
+    error SequencerFeedCallFailed(address feed);
+    error AssetEnablementFailed(address token, OracleStatus status);
 
     event AssetRegistered(
         address indexed token, address indexed feed, uint64 indexed version, bytes32 configHash
@@ -51,6 +53,7 @@ abstract contract StaticsOracle is Ownable2Step, IStaticsOracle {
         AssetStatus newStatus,
         uint64 indexed version
     );
+    event SequencerConfigUpdated(address indexed feed, uint32 gracePeriod, uint64 indexed version);
 
     constructor(
         address initialOwner
@@ -60,6 +63,29 @@ abstract contract StaticsOracle is Ownable2Step, IStaticsOracle {
         address token
     ) external view override returns (AssetOracleConfig memory) {
         return _assetConfigs[token];
+    }
+
+    function sequencerConfig() external view override returns (SequencerConfig memory) {
+        return _sequencerConfig;
+    }
+
+    function setSequencerConfig(
+        address feed,
+        uint32 gracePeriod
+    ) external onlyOwner {
+        if (feed == address(0)) revert ZeroAddress();
+        if (feed.code.length == 0) revert NoContractCode(feed);
+
+        try IAggregatorV3(feed).latestRoundData() returns (
+            uint80, int256, uint256, uint256, uint80
+        ) { }
+        catch {
+            revert SequencerFeedCallFailed(feed);
+        }
+
+        _sequencerConfig = SequencerConfig({ feed: feed, gracePeriod: gracePeriod });
+        uint64 version = _incrementVersion();
+        emit SequencerConfigUpdated(feed, gracePeriod, version);
     }
 
     function registerAsset(
@@ -114,8 +140,18 @@ abstract contract StaticsOracle is Ownable2Step, IStaticsOracle {
             revert InvalidStatusTransition(token, previousStatus, AssetStatus.ENABLED);
         }
 
+        OracleStatus sequencerStatus = _evaluateSequencer();
+        if (sequencerStatus != OracleStatus.VALID) {
+            revert AssetEnablementFailed(token, sequencerStatus);
+        }
+
         if (_validateStoredConfiguration(token, config)) {
             revert StockOraclePaused(token);
+        }
+
+        PriceData memory currentPrice = _evaluateConfiguredPrice(token, config, true);
+        if (currentPrice.status != OracleStatus.VALID) {
+            revert AssetEnablementFailed(token, currentPrice.status);
         }
 
         config.status = AssetStatus.ENABLED;
@@ -148,6 +184,111 @@ abstract contract StaticsOracle is Ownable2Step, IStaticsOracle {
             revert UnsupportedAsset(token);
         }
         return _configHash(token, config);
+    }
+
+    function peekPrice(
+        address token
+    ) external view override returns (PriceData memory) {
+        return _evaluatePrice(token, false);
+    }
+
+    function _evaluatePrice(
+        address token,
+        bool sequencerAlreadyChecked
+    ) internal view returns (PriceData memory data) {
+        AssetOracleConfig storage config = _assetConfigs[token];
+        if (config.status == AssetStatus.UNSET) {
+            data.status = OracleStatus.UNSUPPORTED;
+            return data;
+        }
+        if (config.status == AssetStatus.CANDIDATE) {
+            data.status = OracleStatus.CANDIDATE;
+            return data;
+        }
+        if (config.status == AssetStatus.DISABLED) {
+            data.status = OracleStatus.DISABLED;
+            return data;
+        }
+
+        return _evaluateConfiguredPrice(token, config, sequencerAlreadyChecked);
+    }
+
+    function _evaluateConfiguredPrice(
+        address token,
+        AssetOracleConfig storage config,
+        bool sequencerAlreadyChecked
+    ) internal view returns (PriceData memory data) {
+        if (!sequencerAlreadyChecked) {
+            OracleStatus sequencerStatus = _evaluateSequencer();
+            if (sequencerStatus != OracleStatus.VALID) {
+                data.status = sequencerStatus;
+                return data;
+            }
+        }
+
+        if (config.checkOraclePause) {
+            try IRobinhoodStockToken(token).oraclePaused() returns (bool paused) {
+                if (paused) {
+                    data.status = OracleStatus.STOCK_ORACLE_PAUSED;
+                    return data;
+                }
+            } catch {
+                data.status = OracleStatus.STOCK_PAUSE_CHECK_FAILED;
+                return data;
+            }
+        }
+
+        try IAggregatorV3(config.feed).latestRoundData() returns (
+            uint80 roundId, int256 answer, uint256, uint256 updatedAt, uint80 answeredInRound
+        ) {
+            data.roundId = roundId;
+            data.updatedAt = updatedAt;
+
+            if (answer <= 0) {
+                data.status = OracleStatus.INVALID_PRICE;
+                return data;
+            }
+            if (updatedAt == 0 || answeredInRound < roundId) {
+                data.status = OracleStatus.INCOMPLETE_ROUND;
+                return data;
+            }
+            if (updatedAt > block.timestamp) {
+                data.status = OracleStatus.INVALID_TIMESTAMP;
+                return data;
+            }
+
+            // forge-lint: disable-next-line(unsafe-typecast)
+            data.price1e18 = OracleMath.normalizePrice(uint256(answer), config.feedDecimals);
+            if (block.timestamp - updatedAt > config.maxAge) {
+                data.status = OracleStatus.STALE_PRICE;
+                return data;
+            }
+
+            data.status = OracleStatus.VALID;
+            return data;
+        } catch {
+            data.status = OracleStatus.FEED_CALL_FAILED;
+            return data;
+        }
+    }
+
+    function _evaluateSequencer() internal view returns (OracleStatus) {
+        SequencerConfig memory config = _sequencerConfig;
+        if (config.feed == address(0)) return OracleStatus.SEQUENCER_NOT_CONFIGURED;
+
+        try IAggregatorV3(config.feed).latestRoundData() returns (
+            uint80, int256 answer, uint256 startedAt, uint256, uint80
+        ) {
+            if (answer != 0 || startedAt == 0 || startedAt > block.timestamp) {
+                return OracleStatus.SEQUENCER_DOWN;
+            }
+            if (block.timestamp - startedAt <= config.gracePeriod) {
+                return OracleStatus.SEQUENCER_GRACE_PERIOD;
+            }
+            return OracleStatus.VALID;
+        } catch {
+            return OracleStatus.SEQUENCER_DOWN;
+        }
     }
 
     function _validateConfiguration(
