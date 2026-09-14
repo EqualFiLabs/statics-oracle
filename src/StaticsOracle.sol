@@ -11,8 +11,9 @@ import { IStaticsOracle } from "src/interfaces/IStaticsOracle.sol";
 import { OracleMath } from "src/libraries/OracleMath.sol";
 
 /// @notice Authoritative address-keyed registry and evaluator for Statics external-asset oracles.
-abstract contract StaticsOracle is Ownable2Step, IStaticsOracle {
+contract StaticsOracle is Ownable2Step, IStaticsOracle {
     uint8 internal constant MAX_SUPPORTED_DECIMALS = 18;
+    uint256 public constant MAX_BASKET_ASSETS = 16;
 
     mapping(address token => AssetOracleConfig config) private _assetConfigs;
     SequencerConfig private _sequencerConfig;
@@ -40,6 +41,20 @@ abstract contract StaticsOracle is Ownable2Step, IStaticsOracle {
     error StockOraclePaused(address token);
     error SequencerFeedCallFailed(address feed);
     error AssetEnablementFailed(address token, OracleStatus status);
+    error AssetNotEnabled(address token, AssetStatus status);
+    error SequencerNotConfigured();
+    error SequencerDown();
+    error SequencerGracePeriod(uint256 recoveryStartedAt, uint256 gracePeriod);
+    error FeedCallFailed(address feed);
+    error InvalidPrice(address feed);
+    error IncompleteRound(address feed, uint80 roundId);
+    error InvalidOracleTimestamp(address feed, uint256 updatedAt);
+    error StalePrice(address feed, uint256 updatedAt, uint256 maxAge);
+    error UnexpectedOracleStatus(address token, OracleStatus status);
+    error LengthMismatch();
+    error EmptyBasket();
+    error TooManyAssets(uint256 count);
+    error DuplicateAsset(address token);
 
     event AssetRegistered(
         address indexed token, address indexed feed, uint64 indexed version, bytes32 configHash
@@ -140,7 +155,7 @@ abstract contract StaticsOracle is Ownable2Step, IStaticsOracle {
             revert InvalidStatusTransition(token, previousStatus, AssetStatus.ENABLED);
         }
 
-        OracleStatus sequencerStatus = _evaluateSequencer();
+        (OracleStatus sequencerStatus,) = _evaluateSequencer();
         if (sequencerStatus != OracleStatus.VALID) {
             revert AssetEnablementFailed(token, sequencerStatus);
         }
@@ -192,6 +207,95 @@ abstract contract StaticsOracle is Ownable2Step, IStaticsOracle {
         return _evaluatePrice(token, false);
     }
 
+    function priceUsd(
+        address token
+    ) external view override returns (uint256 price1e18) {
+        PriceData memory data = _evaluatePrice(token, false);
+        return _requireValidPrice(token, data);
+    }
+
+    function valueUsd(
+        address token,
+        uint256 amount
+    ) external view override returns (uint256 value1e18) {
+        PriceData memory data = _evaluatePrice(token, false);
+        uint256 price1e18 = _requireValidPrice(token, data);
+        return OracleMath.valueUsd(amount, price1e18, _assetConfigs[token].tokenDecimals);
+    }
+
+    function basketNav(
+        address[] calldata assets,
+        uint256[] calldata amounts
+    ) external view override returns (uint256 nav1e18) {
+        uint256 count = assets.length;
+        if (count != amounts.length) revert LengthMismatch();
+        if (count == 0) revert EmptyBasket();
+        if (count > MAX_BASKET_ASSETS) revert TooManyAssets(count);
+
+        (OracleStatus sequencerStatus, uint256 recoveryStartedAt) = _evaluateSequencer();
+        if (sequencerStatus != OracleStatus.VALID) {
+            PriceData memory sequencerData = PriceData({
+                price1e18: 0, updatedAt: recoveryStartedAt, roundId: 0, status: sequencerStatus
+            });
+            _revertForStatus(address(0), sequencerData);
+        }
+
+        for (uint256 i; i < count; ++i) {
+            address token = assets[i];
+            for (uint256 j; j < i; ++j) {
+                if (assets[j] == token) revert DuplicateAsset(token);
+            }
+
+            PriceData memory data = _evaluatePrice(token, true);
+            uint256 price1e18 = _requireValidPrice(token, data);
+            nav1e18 += OracleMath.valueUsd(
+                amounts[i], price1e18, _assetConfigs[token].tokenDecimals
+            );
+        }
+    }
+
+    function _requireValidPrice(
+        address token,
+        PriceData memory data
+    ) internal view returns (uint256 price1e18) {
+        if (data.status != OracleStatus.VALID) _revertForStatus(token, data);
+        return data.price1e18;
+    }
+
+    function _revertForStatus(
+        address token,
+        PriceData memory data
+    ) internal view {
+        AssetOracleConfig storage config = _assetConfigs[token];
+        if (data.status == OracleStatus.UNSUPPORTED) revert UnsupportedAsset(token);
+        if (data.status == OracleStatus.CANDIDATE || data.status == OracleStatus.DISABLED) {
+            revert AssetNotEnabled(token, config.status);
+        }
+        if (data.status == OracleStatus.SEQUENCER_NOT_CONFIGURED) {
+            revert SequencerNotConfigured();
+        }
+        if (data.status == OracleStatus.SEQUENCER_DOWN) revert SequencerDown();
+        if (data.status == OracleStatus.SEQUENCER_GRACE_PERIOD) {
+            revert SequencerGracePeriod(data.updatedAt, _sequencerConfig.gracePeriod);
+        }
+        if (data.status == OracleStatus.STOCK_ORACLE_PAUSED) revert StockOraclePaused(token);
+        if (data.status == OracleStatus.STOCK_PAUSE_CHECK_FAILED) {
+            revert StockPauseCheckFailed(token);
+        }
+        if (data.status == OracleStatus.FEED_CALL_FAILED) revert FeedCallFailed(config.feed);
+        if (data.status == OracleStatus.INVALID_PRICE) revert InvalidPrice(config.feed);
+        if (data.status == OracleStatus.INCOMPLETE_ROUND) {
+            revert IncompleteRound(config.feed, data.roundId);
+        }
+        if (data.status == OracleStatus.INVALID_TIMESTAMP) {
+            revert InvalidOracleTimestamp(config.feed, data.updatedAt);
+        }
+        if (data.status == OracleStatus.STALE_PRICE) {
+            revert StalePrice(config.feed, data.updatedAt, config.maxAge);
+        }
+        revert UnexpectedOracleStatus(token, data.status);
+    }
+
     function _evaluatePrice(
         address token,
         bool sequencerAlreadyChecked
@@ -219,9 +323,10 @@ abstract contract StaticsOracle is Ownable2Step, IStaticsOracle {
         bool sequencerAlreadyChecked
     ) internal view returns (PriceData memory data) {
         if (!sequencerAlreadyChecked) {
-            OracleStatus sequencerStatus = _evaluateSequencer();
+            (OracleStatus sequencerStatus, uint256 recoveryStartedAt) = _evaluateSequencer();
             if (sequencerStatus != OracleStatus.VALID) {
                 data.status = sequencerStatus;
+                data.updatedAt = recoveryStartedAt;
                 return data;
             }
         }
@@ -272,22 +377,26 @@ abstract contract StaticsOracle is Ownable2Step, IStaticsOracle {
         }
     }
 
-    function _evaluateSequencer() internal view returns (OracleStatus) {
+    function _evaluateSequencer()
+        internal
+        view
+        returns (OracleStatus status, uint256 recoveryStartedAt)
+    {
         SequencerConfig memory config = _sequencerConfig;
-        if (config.feed == address(0)) return OracleStatus.SEQUENCER_NOT_CONFIGURED;
+        if (config.feed == address(0)) return (OracleStatus.SEQUENCER_NOT_CONFIGURED, 0);
 
         try IAggregatorV3(config.feed).latestRoundData() returns (
             uint80, int256 answer, uint256 startedAt, uint256, uint80
         ) {
             if (answer != 0 || startedAt == 0 || startedAt > block.timestamp) {
-                return OracleStatus.SEQUENCER_DOWN;
+                return (OracleStatus.SEQUENCER_DOWN, startedAt);
             }
             if (block.timestamp - startedAt <= config.gracePeriod) {
-                return OracleStatus.SEQUENCER_GRACE_PERIOD;
+                return (OracleStatus.SEQUENCER_GRACE_PERIOD, startedAt);
             }
-            return OracleStatus.VALID;
+            return (OracleStatus.VALID, startedAt);
         } catch {
-            return OracleStatus.SEQUENCER_DOWN;
+            return (OracleStatus.SEQUENCER_DOWN, 0);
         }
     }
 

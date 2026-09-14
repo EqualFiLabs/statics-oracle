@@ -48,31 +48,9 @@ contract RegistrySequencerMock {
 }
 
 contract StaticsOracleRegistryHarness is StaticsOracle {
-    error PricingUnavailable();
-
     constructor(
         address initialOwner
     ) StaticsOracle(initialOwner) { }
-
-    function priceUsd(
-        address
-    ) external pure override returns (uint256) {
-        revert PricingUnavailable();
-    }
-
-    function valueUsd(
-        address,
-        uint256
-    ) external pure override returns (uint256) {
-        revert PricingUnavailable();
-    }
-
-    function basketNav(
-        address[] calldata,
-        uint256[] calldata
-    ) external pure override returns (uint256) {
-        revert PricingUnavailable();
-    }
 }
 
 contract StaticsOracleRegistryTest is Test {
