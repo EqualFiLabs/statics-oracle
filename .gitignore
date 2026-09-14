@@ -1,0 +1,19 @@
+# Foundry outputs
+/broadcast/
+/cache/
+/out/
+
+# Coverage and analysis outputs
+/coverage/
+/lcov.info
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+*.key
+
+# Editor and operating-system files
+.DS_Store
+.idea/
+.vscode/
