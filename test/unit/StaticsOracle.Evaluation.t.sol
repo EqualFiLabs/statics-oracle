@@ -5,6 +5,8 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Test } from "forge-std/Test.sol";
 
 import { StaticsOracle } from "src/StaticsOracle.sol";
+import { IAggregatorV3 } from "src/interfaces/IAggregatorV3.sol";
+import { IRobinhoodStockToken } from "src/interfaces/IRobinhoodStockToken.sol";
 import { IStaticsOracle } from "src/interfaces/IStaticsOracle.sol";
 
 contract EvaluationTokenMock {
@@ -141,6 +143,18 @@ contract StaticsOracleEvaluationTest is Test {
         oracle.setSequencerConfig(address(broken), 1 hours);
     }
 
+    function test_RevertWhen_SequencerFeedReturnsMalformedData() external {
+        EvaluationFeedMock malformed = new EvaluationFeedMock(0, "Malformed");
+        vm.mockCall(address(malformed), abi.encodeCall(IAggregatorV3.latestRoundData, ()), hex"01");
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StaticsOracle.SequencerFeedCallFailed.selector, address(malformed)
+            )
+        );
+        oracle.setSequencerConfig(address(malformed), 1 hours);
+    }
+
     function test_PeekPriceFailsClosedWhenSequencerIsDownOrMalformed() external {
         sequencer.setRoundData(8, 1, block.timestamp, block.timestamp, 8);
         _assertStatus(IStaticsOracle.OracleStatus.SEQUENCER_DOWN);
@@ -183,6 +197,45 @@ contract StaticsOracleEvaluationTest is Test {
         _assertStatus(IStaticsOracle.OracleStatus.INVALID_PRICE);
 
         feed.setRoundData(13, -1, block.timestamp, block.timestamp, 13);
+        _assertStatus(IStaticsOracle.OracleStatus.INVALID_PRICE);
+    }
+
+    function test_PeekPriceMapsMalformedDependencyDataToDiagnosticStatuses() external {
+        vm.mockCall(address(feed), abi.encodeCall(IAggregatorV3.latestRoundData, ()), hex"01");
+        _assertStatus(IStaticsOracle.OracleStatus.FEED_CALL_FAILED);
+        vm.clearMockedCalls();
+
+        vm.mockCall(
+            address(feed),
+            abi.encodeCall(IAggregatorV3.latestRoundData, ()),
+            abi.encode(
+                uint256(type(uint80).max) + 1,
+                int256(1e8),
+                block.timestamp,
+                block.timestamp,
+                uint256(1)
+            )
+        );
+        _assertStatus(IStaticsOracle.OracleStatus.FEED_CALL_FAILED);
+        vm.clearMockedCalls();
+
+        vm.mockCall(address(sequencer), abi.encodeCall(IAggregatorV3.latestRoundData, ()), hex"01");
+        _assertStatus(IStaticsOracle.OracleStatus.SEQUENCER_DOWN);
+    }
+
+    function test_PeekPriceMapsMalformedPauseBooleanToDiagnosticStatus() external {
+        EvaluationTokenMock stock = new EvaluationTokenMock(18);
+        oracle.registerAsset(address(stock), _stockInput(address(stock)));
+        oracle.enableAsset(address(stock));
+
+        vm.mockCall(
+            address(stock), abi.encodeCall(IRobinhoodStockToken.oraclePaused, ()), abi.encode(2)
+        );
+        _assertStatusFor(address(stock), IStaticsOracle.OracleStatus.STOCK_PAUSE_CHECK_FAILED);
+    }
+
+    function test_PeekPriceMapsNormalizationOverflowToInvalidPrice() external {
+        feed.setRoundData(13, type(int256).max, block.timestamp, block.timestamp, 13);
         _assertStatus(IStaticsOracle.OracleStatus.INVALID_PRICE);
     }
 
