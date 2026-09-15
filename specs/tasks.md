@@ -776,8 +776,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - CI SHALL NOT automatically rewrite the whitelist or submit production feed replacements.
     - _Requirements: 10.5, 10.6, 11.7_
 
-- [ ] 25. Document whitelist and operations
-  - [ ] 25.1 Complete `README.md`
+- [x] 25. Document whitelist and operations
+  - [x] 25.1 Complete `README.md`
     - Explain:
       - threat model,
       - token/feed binding model,
@@ -788,7 +788,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - candidate versus enabled assets.
     - _Requirements: 2, 4, 5, 7-11_
 
-  - [ ] 25.2 Document asset addition procedure
+  - [x] 25.2 Document asset addition procedure
     - **New file:** `docs/ADDING_ASSETS.md`
     - Procedure:
       1. identify exact token,
@@ -802,7 +802,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       9. explicitly enable.
     - _Requirements: 3.1-3.9, 10.8, 11.7_
 
-  - [ ] 25.3 Document feed replacement procedure
+  - [x] 25.3 Document feed replacement procedure
     - **New file:** `docs/REPLACING_FEEDS.md`
     - Require:
       ```text
@@ -816,7 +816,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Explain why external directory changes do not automatically modify protocol configuration.
     - _Requirements: 10.5-10.8_
 
-  - [ ] 25.4 Document failure semantics
+  - [x] 25.4 Document failure semantics
     - **New file:** `docs/ORACLE_STATUS.md`
     - Map every `OracleStatus` to:
       - meaning,
@@ -824,7 +824,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - operator response.
     - _Requirements: 12.1-12.10_
 
-  - [ ] 25.5 Document current V1 scope exclusions
+  - [x] 25.5 Document current V1 scope exclusions
     - Explicitly state that this repository does not yet implement:
       - STATICS TWAP,
       - Basket Token TWAP,
