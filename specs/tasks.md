@@ -720,15 +720,15 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - add fork coverage.
     - _Requirements: 7.1-7.5_
 
-- [ ] 23. Create deployment scripts
-  - [ ] 23.1 Create oracle deployment script
+- [x] 23. Create deployment scripts
+  - [x] 23.1 Create oracle deployment script
     - **New file:** `script/DeployStaticsOracle.s.sol`
     - Deploy non-upgradeable `StaticsOracle`.
     - Set initial owner explicitly.
     - Validate chain ID before production deployment.
     - _Requirements: 1.1, 1.4, 1.5, 10_
 
-  - [ ] 23.2 Create configuration script
+  - [x] 23.2 Create configuration script
     - **New file:** `script/ConfigureStaticsOracle.s.sol`
     - Load or consume reviewed manifest configuration.
     - Register assets as candidates.
@@ -737,7 +737,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Leave candidate crypto assets disabled/candidate.
     - _Requirements: 5.7, 7.1, 10.1-10.4, 11_
 
-  - [ ] 23.3 Add deployed-state verifier
+  - [x] 23.3 Add deployed-state verifier
     - Compare onchain:
       - feed,
       - decimals,
@@ -748,8 +748,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       against expected manifest values.
     - _Requirements: 10.5-10.7, 11.6, 11.7_
 
-- [ ] 24. Add CI
-  - [ ] 24.1 Add deterministic PR workflow
+- [x] 24. Add CI
+  - [x] 24.1 Add deterministic PR workflow
     - **New file:** `.github/workflows/ci.yml`
     - Run:
       ```text
@@ -760,7 +760,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Unit and fuzz tests MUST NOT depend on public RPC availability.
     - _Requirements: 13.1-13.11_
 
-  - [ ] 24.2 Add live validation workflow
+  - [x] 24.2 Add live validation workflow
     - **New file:** `.github/workflows/oracle-validation.yml`
     - Run on:
       - manual dispatch,
@@ -771,7 +771,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - Robinhood fork tests.
     - _Requirements: 3, 11, 13_
 
-  - [ ] 24.3 Prevent automatic source-driven mutations
+  - [x] 24.3 Prevent automatic source-driven mutations
     - CI may report drift.
     - CI SHALL NOT automatically rewrite the whitelist or submit production feed replacements.
     - _Requirements: 10.5, 10.6, 11.7_
