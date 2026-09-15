@@ -29,7 +29,9 @@ runtime.
 The owner remains a trusted security boundary. It can configure the sequencer guard,
 register candidates, change disabled bindings, and transition asset states. Ownership uses
 OpenZeppelin's two-step transfer flow so a new owner must explicitly accept the role.
-Operators must independently review the manifest and destination owner before signing.
+Renunciation is intentionally disabled so feed replacement and emergency lifecycle recovery
+cannot be permanently abandoned. Operators must independently review the manifest and
+destination owner before signing.
 
 ## Pricing and lifecycle
 
@@ -155,9 +157,10 @@ See [adding assets](docs/ADDING_ASSETS.md) and
 
 `DeployStaticsOracle.s.sol` accepts an explicit `INITIAL_OWNER` and refuses any chain other
 than Robinhood mainnet. `ConfigureStaticsOracle.s.sol` accepts `STATICS_ORACLE`, consumes
-the checked-in manifest, and verifies the resulting sequencer, asset fields, lifecycle
-states, and registry version. The configuration script is intended for a fresh oracle; the
-broadcasting account must be its owner.
+the checked-in manifest, rejects out-of-range numeric fields, and verifies the resulting
+sequencer, exact feed binding, feed-description hash, asset kind, decimals, freshness,
+pause policy, lifecycle state, and registry version. The configuration script is intended
+for a fresh oracle; the broadcasting account must be its owner.
 
 Simulate both scripts and inspect every transaction before adding `--broadcast`. A script
 simulation, fork test, or passing CI run is not deployment evidence. This repository's

@@ -17,7 +17,7 @@ component.
 | `STOCK_ORACLE_PAUSED` | A Stock Token or ETF reports `oraclePaused() == true`. | `StockOraclePaused(token)`. | Halt the asset and investigate Robinhood's corporate-action/oracle state. Do not reconstruct price locally. |
 | `STOCK_PAUSE_CHECK_FAILED` | The required `oraclePaused()` call reverted or returned malformed data. | `StockPauseCheckFailed(token)`. | Treat as unavailable. Verify exact token bytecode/interface and upstream health. |
 | `FEED_CALL_FAILED` | `latestRoundData()` reverted or returned malformed data. | `FeedCallFailed(feed)`. | Verify the exact proxy, chain state, and upstream incident. Do not substitute a fallback feed. |
-| `INVALID_PRICE` | Feed answer is zero or negative. | `InvalidPrice(feed)`. | Halt use and investigate the feed. Do not clamp, take an absolute value, or reuse an old answer. |
+| `INVALID_PRICE` | Feed answer is zero, negative, or too large to normalize safely. | `InvalidPrice(feed)`. | Halt use and investigate the feed. Do not clamp, take an absolute value, or reuse an old answer. |
 | `INCOMPLETE_ROUND` | Timestamp is zero or `answeredInRound < roundId`. | `IncompleteRound(feed, roundId)`. | Wait for a complete round and verify feed health before retrying. |
 | `INVALID_TIMESTAMP` | Feed timestamp is in the future relative to the chain. | `InvalidOracleTimestamp(feed, updatedAt)`. | Treat as feed/chain-time corruption; inspect the proxy and chain before resuming. |
 | `STALE_PRICE` | `block.timestamp - updatedAt` exceeds the asset's explicit `maxAge`. | `StalePrice(feed, updatedAt, maxAge)`. | Halt use. Determine whether the feed is delayed or the reviewed freshness policy is wrong; policy changes require full review. |

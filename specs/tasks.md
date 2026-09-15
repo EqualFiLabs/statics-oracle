@@ -740,7 +740,9 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
   - [x] 23.3 Add deployed-state verifier
     - Compare onchain:
       - feed,
+      - feed description hash,
       - decimals,
+      - asset kind,
       - status,
       - max age,
       - pause policy,
@@ -862,26 +864,32 @@ Each PR SHOULD remain independently reviewable and keep tests passing.
 
 The following MUST be complete before production deployment:
 
-- [ ] Exact V1 token/feed matrix reviewed.
-- [ ] Robinhood Stock Token entries independently verified.
-- [ ] Crypto wrapper provenance reviewed for every enabled crypto asset.
-- [ ] Feed descriptions and decimals validated.
-- [ ] Per-asset `maxAge` values explicitly selected.
+- [x] Exact V1 token/feed matrix reviewed.
+- [x] Robinhood Stock Token entries independently verified.
+- [x] Crypto wrapper provenance reviewed for every enabled crypto asset.
+- [x] Feed descriptions and decimals validated.
+- [x] Per-asset `maxAge` values explicitly selected.
 - [ ] Canonical Robinhood Chain sequencer uptime feed resolved from an authoritative source.
 - [ ] Sequencer recovery grace period selected.
-- [ ] Full deterministic test suite passes.
-- [ ] Fuzz/property suite passes.
-- [ ] Robinhood mainnet fork tests pass.
-- [ ] Generated manifest equals reviewed configuration.
+- [x] Full deterministic test suite passes.
+- [x] Fuzz/property suite passes.
+- [x] Robinhood mainnet fork tests pass.
+- [x] Generated manifest equals reviewed configuration.
 - [ ] Deployed state matches manifest.
 - [ ] Ownership destination reviewed.
-- [ ] Candidate assets remain non-enabled unless explicitly approved.
+- [x] Candidate assets remain non-enabled unless explicitly approved.
 
 ---
 
 # Final Checkpoint
 
 - [ ] 26. Final checkpoint: production readiness
+  - Checkpoint executed on 2026-09-14 at manifest block `63201179`:
+    deterministic tests, byte-for-byte generation, live verification, fork validation,
+    deployment simulation, and independent security-remediation review passed.
+  - Production readiness remains blocked by the unresolved canonical onchain sequencer
+    uptime-feed proxy and recovery grace policy. No oracle has been deployed, so deployed
+    configuration and final governance ownership cannot yet be compared.
   - Run:
     ```text
     forge fmt --check
