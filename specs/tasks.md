@@ -740,7 +740,9 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
   - [x] 23.3 Add deployed-state verifier
     - Compare onchain:
       - feed,
+      - feed description hash,
       - decimals,
+      - asset kind,
       - status,
       - max age,
       - pause policy,
@@ -776,8 +778,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - CI SHALL NOT automatically rewrite the whitelist or submit production feed replacements.
     - _Requirements: 10.5, 10.6, 11.7_
 
-- [ ] 25. Document whitelist and operations
-  - [ ] 25.1 Complete `README.md`
+- [x] 25. Document whitelist and operations
+  - [x] 25.1 Complete `README.md`
     - Explain:
       - threat model,
       - token/feed binding model,
@@ -788,7 +790,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - candidate versus enabled assets.
     - _Requirements: 2, 4, 5, 7-11_
 
-  - [ ] 25.2 Document asset addition procedure
+  - [x] 25.2 Document asset addition procedure
     - **New file:** `docs/ADDING_ASSETS.md`
     - Procedure:
       1. identify exact token,
@@ -802,7 +804,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       9. explicitly enable.
     - _Requirements: 3.1-3.9, 10.8, 11.7_
 
-  - [ ] 25.3 Document feed replacement procedure
+  - [x] 25.3 Document feed replacement procedure
     - **New file:** `docs/REPLACING_FEEDS.md`
     - Require:
       ```text
@@ -816,7 +818,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Explain why external directory changes do not automatically modify protocol configuration.
     - _Requirements: 10.5-10.8_
 
-  - [ ] 25.4 Document failure semantics
+  - [x] 25.4 Document failure semantics
     - **New file:** `docs/ORACLE_STATUS.md`
     - Map every `OracleStatus` to:
       - meaning,
@@ -824,7 +826,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - operator response.
     - _Requirements: 12.1-12.10_
 
-  - [ ] 25.5 Document current V1 scope exclusions
+  - [x] 25.5 Document current V1 scope exclusions
     - Explicitly state that this repository does not yet implement:
       - STATICS TWAP,
       - Basket Token TWAP,
@@ -862,26 +864,32 @@ Each PR SHOULD remain independently reviewable and keep tests passing.
 
 The following MUST be complete before production deployment:
 
-- [ ] Exact V1 token/feed matrix reviewed.
-- [ ] Robinhood Stock Token entries independently verified.
-- [ ] Crypto wrapper provenance reviewed for every enabled crypto asset.
-- [ ] Feed descriptions and decimals validated.
-- [ ] Per-asset `maxAge` values explicitly selected.
+- [x] Exact V1 token/feed matrix reviewed.
+- [x] Robinhood Stock Token entries independently verified.
+- [x] Crypto wrapper provenance reviewed for every enabled crypto asset.
+- [x] Feed descriptions and decimals validated.
+- [x] Per-asset `maxAge` values explicitly selected.
 - [ ] Canonical Robinhood Chain sequencer uptime feed resolved from an authoritative source.
 - [ ] Sequencer recovery grace period selected.
-- [ ] Full deterministic test suite passes.
-- [ ] Fuzz/property suite passes.
-- [ ] Robinhood mainnet fork tests pass.
-- [ ] Generated manifest equals reviewed configuration.
+- [x] Full deterministic test suite passes.
+- [x] Fuzz/property suite passes.
+- [x] Robinhood mainnet fork tests pass.
+- [x] Generated manifest equals reviewed configuration.
 - [ ] Deployed state matches manifest.
 - [ ] Ownership destination reviewed.
-- [ ] Candidate assets remain non-enabled unless explicitly approved.
+- [x] Candidate assets remain non-enabled unless explicitly approved.
 
 ---
 
 # Final Checkpoint
 
 - [ ] 26. Final checkpoint: production readiness
+  - Checkpoint executed on 2026-09-14 at manifest block `63201179`:
+    deterministic tests, byte-for-byte generation, live verification, fork validation,
+    deployment simulation, and independent security-remediation review passed.
+  - Production readiness remains blocked by the unresolved canonical onchain sequencer
+    uptime-feed proxy and recovery grace policy. No oracle has been deployed, so deployed
+    configuration and final governance ownership cannot yet be compared.
   - Run:
     ```text
     forge fmt --check
