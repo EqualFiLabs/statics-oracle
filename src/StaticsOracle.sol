@@ -15,6 +15,14 @@ contract StaticsOracle is Ownable2Step, IStaticsOracle {
     uint8 internal constant MAX_SUPPORTED_DECIMALS = 18;
     uint256 public constant MAX_BASKET_ASSETS = 16;
 
+    struct RoundData {
+        uint80 roundId;
+        int256 answer;
+        uint256 startedAt;
+        uint256 updatedAt;
+        uint80 answeredInRound;
+    }
+
     mapping(address token => AssetOracleConfig config) private _assetConfigs;
     SequencerConfig private _sequencerConfig;
 
@@ -55,6 +63,7 @@ contract StaticsOracle is Ownable2Step, IStaticsOracle {
     error EmptyBasket();
     error TooManyAssets(uint256 count);
     error DuplicateAsset(address token);
+    error OwnershipRenunciationDisabled();
 
     event AssetRegistered(
         address indexed token, address indexed feed, uint64 indexed version, bytes32 configHash
@@ -74,6 +83,11 @@ contract StaticsOracle is Ownable2Step, IStaticsOracle {
         address initialOwner
     ) Ownable(initialOwner) { }
 
+    /// @notice Preserve an administrative recovery path for feed and lifecycle changes.
+    function renounceOwnership() public pure override {
+        revert OwnershipRenunciationDisabled();
+    }
+
     function assetConfig(
         address token
     ) external view override returns (AssetOracleConfig memory) {
@@ -91,12 +105,8 @@ contract StaticsOracle is Ownable2Step, IStaticsOracle {
         if (feed == address(0)) revert ZeroAddress();
         if (feed.code.length == 0) revert NoContractCode(feed);
 
-        try IAggregatorV3(feed).latestRoundData() returns (
-            uint80, int256, uint256, uint256, uint80
-        ) { }
-        catch {
-            revert SequencerFeedCallFailed(feed);
-        }
+        (bool callSucceeded,) = _tryReadRoundData(feed);
+        if (!callSucceeded) revert SequencerFeedCallFailed(feed);
 
         _sequencerConfig = SequencerConfig({ feed: feed, gracePeriod: gracePeriod });
         uint64 version = _incrementVersion();
@@ -332,49 +342,54 @@ contract StaticsOracle is Ownable2Step, IStaticsOracle {
         }
 
         if (config.checkOraclePause) {
-            try IRobinhoodStockToken(token).oraclePaused() returns (bool paused) {
-                if (paused) {
-                    data.status = OracleStatus.STOCK_ORACLE_PAUSED;
-                    return data;
-                }
-            } catch {
+            (bool pauseCallSucceeded, bool paused) = _tryReadOraclePaused(token);
+            if (!pauseCallSucceeded) {
                 data.status = OracleStatus.STOCK_PAUSE_CHECK_FAILED;
                 return data;
             }
+            if (paused) {
+                data.status = OracleStatus.STOCK_ORACLE_PAUSED;
+                return data;
+            }
         }
 
-        try IAggregatorV3(config.feed).latestRoundData() returns (
-            uint80 roundId, int256 answer, uint256, uint256 updatedAt, uint80 answeredInRound
-        ) {
-            data.roundId = roundId;
-            data.updatedAt = updatedAt;
-
-            if (answer <= 0) {
-                data.status = OracleStatus.INVALID_PRICE;
-                return data;
-            }
-            if (updatedAt == 0 || answeredInRound < roundId) {
-                data.status = OracleStatus.INCOMPLETE_ROUND;
-                return data;
-            }
-            if (updatedAt > block.timestamp) {
-                data.status = OracleStatus.INVALID_TIMESTAMP;
-                return data;
-            }
-
-            // forge-lint: disable-next-line(unsafe-typecast)
-            data.price1e18 = OracleMath.normalizePrice(uint256(answer), config.feedDecimals);
-            if (block.timestamp - updatedAt > config.maxAge) {
-                data.status = OracleStatus.STALE_PRICE;
-                return data;
-            }
-
-            data.status = OracleStatus.VALID;
-            return data;
-        } catch {
+        (bool callSucceeded, RoundData memory round) = _tryReadRoundData(config.feed);
+        if (!callSucceeded) {
             data.status = OracleStatus.FEED_CALL_FAILED;
             return data;
         }
+
+        data.roundId = round.roundId;
+        data.updatedAt = round.updatedAt;
+
+        if (round.answer <= 0) {
+            data.status = OracleStatus.INVALID_PRICE;
+            return data;
+        }
+        if (round.updatedAt == 0 || round.answeredInRound < round.roundId) {
+            data.status = OracleStatus.INCOMPLETE_ROUND;
+            return data;
+        }
+        if (round.updatedAt > block.timestamp) {
+            data.status = OracleStatus.INVALID_TIMESTAMP;
+            return data;
+        }
+
+        // forge-lint: disable-next-line(unsafe-typecast)
+        uint256 unsignedAnswer = uint256(round.answer);
+        uint256 normalizationScale = 10 ** uint256(18 - config.feedDecimals);
+        if (unsignedAnswer > type(uint256).max / normalizationScale) {
+            data.status = OracleStatus.INVALID_PRICE;
+            return data;
+        }
+        data.price1e18 = OracleMath.normalizePrice(unsignedAnswer, config.feedDecimals);
+        if (block.timestamp - round.updatedAt > config.maxAge) {
+            data.status = OracleStatus.STALE_PRICE;
+            return data;
+        }
+
+        data.status = OracleStatus.VALID;
+        return data;
     }
 
     function _evaluateSequencer()
@@ -385,19 +400,89 @@ contract StaticsOracle is Ownable2Step, IStaticsOracle {
         SequencerConfig memory config = _sequencerConfig;
         if (config.feed == address(0)) return (OracleStatus.SEQUENCER_NOT_CONFIGURED, 0);
 
-        try IAggregatorV3(config.feed).latestRoundData() returns (
-            uint80, int256 answer, uint256 startedAt, uint256, uint80
-        ) {
-            if (answer != 0 || startedAt == 0 || startedAt > block.timestamp) {
-                return (OracleStatus.SEQUENCER_DOWN, startedAt);
-            }
-            if (block.timestamp - startedAt <= config.gracePeriod) {
-                return (OracleStatus.SEQUENCER_GRACE_PERIOD, startedAt);
-            }
-            return (OracleStatus.VALID, startedAt);
-        } catch {
-            return (OracleStatus.SEQUENCER_DOWN, 0);
+        (bool callSucceeded, RoundData memory round) = _tryReadRoundData(config.feed);
+        if (!callSucceeded) return (OracleStatus.SEQUENCER_DOWN, 0);
+
+        if (round.answer != 0 || round.startedAt == 0 || round.startedAt > block.timestamp) {
+            return (OracleStatus.SEQUENCER_DOWN, round.startedAt);
         }
+        if (block.timestamp - round.startedAt <= config.gracePeriod) {
+            return (OracleStatus.SEQUENCER_GRACE_PERIOD, round.startedAt);
+        }
+        return (OracleStatus.VALID, round.startedAt);
+    }
+
+    /// @dev Copies at most the five expected words so malformed dependencies cannot expand
+    ///      caller memory with arbitrary returndata. Narrow integer words are validated before cast.
+    function _tryReadRoundData(
+        address feed
+    ) internal view returns (bool callSucceeded, RoundData memory round) {
+        bytes memory callData = abi.encodeCall(IAggregatorV3.latestRoundData, ());
+        uint256 returnSize;
+        uint256 rawRoundId;
+        uint256 rawAnsweredInRound;
+
+        assembly ("memory-safe") {
+            let output := mload(0x40)
+            callSucceeded := staticcall(
+                gas(),
+                feed,
+                add(callData, 0x20),
+                mload(callData),
+                output,
+                0xa0
+            )
+            returnSize := returndatasize()
+            rawRoundId := mload(output)
+            mstore(add(round, 0x20), mload(add(output, 0x20)))
+            mstore(add(round, 0x40), mload(add(output, 0x40)))
+            mstore(add(round, 0x60), mload(add(output, 0x60)))
+            rawAnsweredInRound := mload(add(output, 0x80))
+        }
+
+        if (
+            !callSucceeded || returnSize != 160 || rawRoundId > type(uint80).max
+                || rawAnsweredInRound > type(uint80).max
+        ) {
+            callSucceeded = false;
+            return (callSucceeded, round);
+        }
+
+        // forge-lint: disable-next-line(unsafe-typecast)
+        round.roundId = uint80(rawRoundId);
+        // forge-lint: disable-next-line(unsafe-typecast)
+        round.answeredInRound = uint80(rawAnsweredInRound);
+        return (callSucceeded, round);
+    }
+
+    /// @dev Valid ABI bool values are exactly zero or one; all other words are malformed.
+    function _tryReadOraclePaused(
+        address token
+    ) internal view returns (bool callSucceeded, bool paused) {
+        bytes memory callData = abi.encodeCall(IRobinhoodStockToken.oraclePaused, ());
+        uint256 returnSize;
+        uint256 rawPaused;
+
+        assembly ("memory-safe") {
+            let output := mload(0x40)
+            callSucceeded := staticcall(
+                gas(),
+                token,
+                add(callData, 0x20),
+                mload(callData),
+                output,
+                0x20
+            )
+            returnSize := returndatasize()
+            rawPaused := mload(output)
+        }
+
+        if (!callSucceeded || returnSize != 32 || rawPaused > 1) {
+            callSucceeded = false;
+            return (callSucceeded, paused);
+        }
+        paused = rawPaused == 1;
+        return (callSucceeded, paused);
     }
 
     function _validateConfiguration(
@@ -486,11 +571,9 @@ contract StaticsOracle is Ownable2Step, IStaticsOracle {
     function _readOraclePaused(
         address token
     ) internal view returns (bool value) {
-        try IRobinhoodStockToken(token).oraclePaused() returns (bool paused) {
-            return paused;
-        } catch {
-            revert StockPauseCheckFailed(token);
-        }
+        (bool callSucceeded, bool paused) = _tryReadOraclePaused(token);
+        if (!callSucceeded) revert StockPauseCheckFailed(token);
+        return paused;
     }
 
     function _toConfig(
