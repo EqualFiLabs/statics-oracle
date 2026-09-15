@@ -25,6 +25,7 @@ contract AddressIsolationFuzzTest is Test {
     StaticsOracle internal oracle;
     OracleTokenTestMock internal approved;
     OracleFeedTestMock internal feed;
+    OracleFeedTestMock internal sequencer;
     LookalikeWrapperMock internal template;
 
     function setUp() external {
@@ -33,7 +34,7 @@ contract AddressIsolationFuzzTest is Test {
         approved = new OracleTokenTestMock(8);
         feed = new OracleFeedTestMock(8, "WBTC / USD");
         template = new LookalikeWrapperMock();
-        OracleFeedTestMock sequencer = new OracleFeedTestMock(0, "Sequencer");
+        sequencer = new OracleFeedTestMock(0, "Sequencer");
         feed.setRound(100_000e8, block.timestamp);
         sequencer.setRoundData(1, 0, block.timestamp - 2 hours, block.timestamp, 1);
         oracle.setSequencerConfig(address(sequencer), 1 hours);
@@ -56,9 +57,12 @@ contract AddressIsolationFuzzTest is Test {
         address lookalike
     ) external {
         vm.assume(uint160(lookalike) > 0xffff);
+        vm.assume(lookalike != address(this));
+        vm.assume(lookalike != address(vm));
         vm.assume(lookalike != address(approved));
         vm.assume(lookalike != address(oracle));
         vm.assume(lookalike != address(feed));
+        vm.assume(lookalike != address(sequencer));
         vm.assume(lookalike != address(template));
         vm.etch(lookalike, address(template).code);
 
