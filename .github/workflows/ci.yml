@@ -29,6 +29,16 @@ jobs:
         with:
           version: v1.8.1
 
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Check oracle tooling syntax
+        run: |
+          node --check scripts/generate-whitelist.mjs
+          node --check scripts/verify-whitelist.mjs
+
       - name: Check formatting
         run: forge fmt --check
 

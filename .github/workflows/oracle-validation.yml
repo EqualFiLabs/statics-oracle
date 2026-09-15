@@ -1,0 +1,45 @@
+name: Oracle validation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 9 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oracle-validation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  live-validation:
+    name: Live sources and Robinhood fork
+    runs-on: ubuntu-latest
+    env:
+      ROBINHOOD_MAINNET: ${{ secrets.ROBINHOOD_MAINNET }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.1
+
+      - name: Require configured private RPC
+        shell: bash
+        run: test -n "$ROBINHOOD_MAINNET"
+
+      - name: Verify canonical sources and live contracts
+        run: node scripts/verify-whitelist.mjs
+
+      - name: Run block-pinned Robinhood fork tests
+        run: forge test --match-path 'test/fork/*.t.sol'
