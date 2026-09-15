@@ -460,8 +460,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Fail rather than silently omitting a requested asset.
     - _Requirements: 11.1-11.7_
 
-- [ ] 13. Build whitelist verification tooling
-  - [ ] 13.1 Implement live manifest verifier
+- [x] 13. Build whitelist verification tooling
+  - [x] 13.1 Implement live manifest verifier
     - **New file:** `scripts/verify-whitelist.mjs`
     - Compare checked-in manifest against:
       - Robinhood registry,
@@ -469,7 +469,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - Robinhood Chain contracts.
     - _Requirements: 3.1-3.9, 11.6, 11.7_
 
-  - [ ] 13.2 Detect canonical source drift
+  - [x] 13.2 Detect canonical source drift
     - Report:
       - changed token address,
       - changed feed proxy,
@@ -480,7 +480,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Do not automatically rewrite production configuration.
     - _Requirements: 10.5, 10.6, 11.7_
 
-  - [ ] 13.3 Distinguish warnings from hard failures
+  - [x] 13.3 Distinguish warnings from hard failures
     - Hard fail:
       - identity mismatch,
       - missing canonical contract,
@@ -494,7 +494,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
 
 ## Checkpoint C
 
-- [ ] 14. Checkpoint: reproducible whitelist
+- [x] 14. Checkpoint: reproducible whitelist
   - Regenerate the manifest.
   - Re-run live verification.
   - Compare generated output to checked-in output.
@@ -502,8 +502,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
   - Confirm candidate crypto assets remain unavailable for strict production pricing.
   - _Requirements: 2, 3, 5, 10, 11_
 
-- [ ] 15. Build full configuration and lifecycle unit tests
-  - [ ] 15.1 Create configuration test suite
+- [x] 15. Build full configuration and lifecycle unit tests
+  - [x] 15.1 Create configuration test suite
     - **New file:** `test/unit/StaticsOracle.Config.t.sol`
     - Test:
       - valid registration,
@@ -518,7 +518,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - invalid Stock/ETF pause configuration.
     - _Requirements: 3.7-3.9, 10.1-10.6, 13.9_
 
-  - [ ] 15.2 Test lifecycle state machine
+  - [x] 15.2 Test lifecycle state machine
     - Cover:
       - `UNSET -> CANDIDATE`,
       - `CANDIDATE -> ENABLED`,
@@ -528,14 +528,14 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - configuration mutation while enabled.
     - _Requirements: 10.1-10.6_
 
-  - [ ] 15.3 Test registry versioning
+  - [x] 15.3 Test registry versioning
     - Assert every successful admin mutation increments version exactly once.
     - Assert failed changes do not increment.
     - Assert view/price calls do not increment.
     - _Requirements: 10.7, 11.1-11.7_
 
-- [ ] 16. Build price validation tests
-  - [ ] 16.1 Create price test suite
+- [x] 16. Build price validation tests
+  - [x] 16.1 Create price test suite
     - **New file:** `test/unit/StaticsOracle.Price.t.sol`
     - Test:
       - valid answer,
@@ -548,7 +548,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - failed feed call.
     - _Requirements: 6.1-6.9, 12.2-12.5, 13.7_
 
-  - [ ] 16.2 Test lifecycle-aware pricing
+  - [x] 16.2 Test lifecycle-aware pricing
     - Verify:
       - unregistered token fails,
       - candidate fails,
@@ -556,13 +556,13 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - enabled succeeds.
     - _Requirements: 8.5, 10.1-10.4, 12.1_
 
-  - [ ] 16.3 Test diagnostic versus strict behavior
+  - [x] 16.3 Test diagnostic versus strict behavior
     - `peekPrice()` returns explicit status.
     - `priceUsd()` reverts on any non-valid status.
     - _Requirements: 8.3-8.6, 12.1-12.10_
 
-- [ ] 17. Build stock-specific regression tests
-  - [ ] 17.1 Create stock test suite
+- [x] 17. Build stock-specific regression tests
+  - [x] 17.1 Create stock test suite
     - **New file:** `test/unit/StaticsOracle.Stock.t.sol`
     - Test:
       - normal Stock Token price,
@@ -570,12 +570,12 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - failed `oraclePaused()` call.
     - _Requirements: 4.1-4.7, 13.7_
 
-  - [ ] 17.2 Prove `uiMultiplier()` is not double-applied
+  - [x] 17.2 Prove `uiMultiplier()` is not double-applied
     - Build a mock whose multiplier changes independently.
     - Verify Statics arithmetic depends only on the feed answer.
     - _Requirements: 4.2-4.4, 13.5_
 
-  - [ ] 17.3 Test dividend continuity scenario
+  - [x] 17.3 Test dividend continuity scenario
     - Simulate:
       - underlying reference unchanged,
       - multiplier increases,
@@ -583,13 +583,13 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Verify Statics uses the already-adjusted feed price once.
     - _Requirements: 4.2-4.4, 13.6_
 
-  - [ ] 17.4 Test split continuity scenario
+  - [x] 17.4 Test split continuity scenario
     - Simulate representative share-price and multiplier changes.
     - Verify Basket token-value calculation remains economically continuous according to Chainlink output.
     - _Requirements: 4.2-4.4, 13.6_
 
-- [ ] 18. Build sequencer tests
-  - [ ] 18.1 Create sequencer test suite
+- [x] 18. Build sequencer tests
+  - [x] 18.1 Create sequencer test suite
     - **New file:** `test/unit/StaticsOracle.Sequencer.t.sol`
     - Cover:
       - missing config,
@@ -600,14 +600,14 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - malformed feed behavior.
     - _Requirements: 7.1-7.5, 12.7, 12.8, 13.10_
 
-  - [ ] 18.2 Verify strict price gating
+  - [x] 18.2 Verify strict price gating
     - Prove an otherwise valid price fails while:
       - sequencer is down,
       - grace period is active.
     - _Requirements: 7.2, 7.3, 13.10_
 
-- [ ] 19. Build Basket NAV tests
-  - [ ] 19.1 Create NAV test suite
+- [x] 19. Build Basket NAV tests
+  - [x] 19.1 Create NAV test suite
     - **New file:** `test/unit/StaticsOracle.Nav.t.sol`
     - Cover:
       - single asset,
@@ -622,7 +622,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - >16 assets.
     - _Requirements: 9.1-9.7, 13.11_
 
-  - [ ] 19.2 Test invalid component propagation
+  - [x] 19.2 Test invalid component propagation
     - Prove that one:
       - stale,
       - paused,
@@ -632,7 +632,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       component invalidates strict NAV.
     - _Requirements: 9.7, 13.7-13.11_
 
-  - [ ] 19.3 Test representative Statics Basket
+  - [x] 19.3 Test representative Statics Basket
     - Example:
       ```text
       0.1 NVDA
@@ -644,7 +644,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
 
 ## Checkpoint D
 
-- [ ] 20. Checkpoint: deterministic safety coverage
+- [x] 20. Checkpoint: deterministic safety coverage
   - Run all unit suites.
   - Confirm every explicit `OracleStatus` and strict custom error has coverage.
   - Confirm Stock Token multiplier regression tests exist.
@@ -652,8 +652,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
   - Confirm invalid oracle conditions cannot produce successful NAV.
   - _Requirements: 12, 13_
 
-- [ ] 21. Add fuzz and property testing
-  - [ ] 21.1 Fuzz normalization math
+- [x] 21. Add fuzz and property testing
+  - [x] 21.1 Fuzz normalization math
     - **New file:** `test/fuzz/OracleMath.t.sol`
     - Fuzz:
       - amount,
@@ -663,7 +663,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Bound values to supported ranges.
     - _Requirements: 13.3, 13.4_
 
-  - [ ] 21.2 Prove NAV additivity
+  - [x] 21.2 Prove NAV additivity
     - **New file:** `test/fuzz/NavProperties.t.sol`
     - Prove:
       ```text
@@ -674,24 +674,24 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       subject only to defined rounding.
     - _Requirements: 9.2, 9.3, 13.11_
 
-  - [ ] 21.3 Prove address isolation
+  - [x] 21.3 Prove address isolation
     - **New file:** `test/fuzz/AddressIsolation.t.sol`
     - Generate arbitrary lookalike tokens.
     - Prove same ticker/name cannot inherit approved configuration.
     - _Requirements: 2.3-2.6, 13.1_
 
-  - [ ] 21.4 Prove wrapper isolation
+  - [x] 21.4 Prove wrapper isolation
     - Test arbitrary economically equivalent wrapper mocks.
     - Prove an approved WBTC-style token does not make an unapproved BTC wrapper priceable.
     - _Requirements: 5.1-5.7, 13.2_
 
-  - [ ] 21.5 Prove registry version monotonicity
+  - [x] 21.5 Prove registry version monotonicity
     - Fuzz valid sequences of admin actions.
     - Assert exactly one version increment for each successful mutation.
     - _Requirements: 10.7, 11.1-11.7_
 
-- [ ] 22. Add Robinhood Chain fork tests
-  - [ ] 22.1 Create live feed fork suite
+- [x] 22. Add Robinhood Chain fork tests
+  - [x] 22.1 Create live feed fork suite
     - **New file:** `test/fork/RobinhoodFeeds.t.sol`
     - For every enabled target:
       - verify token code,
@@ -702,7 +702,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - verify Stock/ETF pause method can be called.
     - _Requirements: 3.7-3.9, 11.4-11.6, 13_
 
-  - [ ] 22.2 Create full whitelist matrix fork suite
+  - [x] 22.2 Create full whitelist matrix fork suite
     - **New file:** `test/fork/WhitelistMatrix.t.sol`
     - Read or derive expected configuration from the checked-in manifest.
     - Avoid duplicating the whitelist in Solidity constants where practical.
@@ -710,6 +710,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - _Requirements: 3.1-3.9, 5.7, 11.1-11.7_
 
   - [ ] 22.3 Add production sequencer fork test only after canonical address resolution
+    - Blocked: official Robinhood documentation publishes a websocket sequencer feed,
+      but no authoritative source currently identifies a canonical onchain uptime-feed proxy.
     - Do not block deterministic local testing on an unverified address.
     - Once resolved:
       - add it to the manifest,
@@ -718,15 +720,15 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - add fork coverage.
     - _Requirements: 7.1-7.5_
 
-- [ ] 23. Create deployment scripts
-  - [ ] 23.1 Create oracle deployment script
+- [x] 23. Create deployment scripts
+  - [x] 23.1 Create oracle deployment script
     - **New file:** `script/DeployStaticsOracle.s.sol`
     - Deploy non-upgradeable `StaticsOracle`.
     - Set initial owner explicitly.
     - Validate chain ID before production deployment.
     - _Requirements: 1.1, 1.4, 1.5, 10_
 
-  - [ ] 23.2 Create configuration script
+  - [x] 23.2 Create configuration script
     - **New file:** `script/ConfigureStaticsOracle.s.sol`
     - Load or consume reviewed manifest configuration.
     - Register assets as candidates.
@@ -735,7 +737,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Leave candidate crypto assets disabled/candidate.
     - _Requirements: 5.7, 7.1, 10.1-10.4, 11_
 
-  - [ ] 23.3 Add deployed-state verifier
+  - [x] 23.3 Add deployed-state verifier
     - Compare onchain:
       - feed,
       - decimals,
@@ -746,8 +748,8 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       against expected manifest values.
     - _Requirements: 10.5-10.7, 11.6, 11.7_
 
-- [ ] 24. Add CI
-  - [ ] 24.1 Add deterministic PR workflow
+- [x] 24. Add CI
+  - [x] 24.1 Add deterministic PR workflow
     - **New file:** `.github/workflows/ci.yml`
     - Run:
       ```text
@@ -758,7 +760,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Unit and fuzz tests MUST NOT depend on public RPC availability.
     - _Requirements: 13.1-13.11_
 
-  - [ ] 24.2 Add live validation workflow
+  - [x] 24.2 Add live validation workflow
     - **New file:** `.github/workflows/oracle-validation.yml`
     - Run on:
       - manual dispatch,
@@ -769,7 +771,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - Robinhood fork tests.
     - _Requirements: 3, 11, 13_
 
-  - [ ] 24.3 Prevent automatic source-driven mutations
+  - [x] 24.3 Prevent automatic source-driven mutations
     - CI may report drift.
     - CI SHALL NOT automatically rewrite the whitelist or submit production feed replacements.
     - _Requirements: 10.5, 10.6, 11.7_

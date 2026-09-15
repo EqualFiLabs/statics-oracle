@@ -10,6 +10,7 @@ export const SOURCES = Object.freeze({
   chainlinkDirectory:
     "https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json",
   robinhoodOracleDocs: "https://docs.robinhood.com/chain/oracles-and-price-feeds/",
+  robinhoodNetworkDocs: "https://docs.robinhood.com/chain/connecting/",
   chainlinkEquityDocs:
     "https://docs.chain.link/data-feeds/tokenized-equity-feeds/robinhood",
   chainlinkFeedCatalog: "https://docs.chain.link/data-feeds/price-feeds/addresses",
@@ -318,13 +319,14 @@ export async function generateManifest({ rpcUrl, blockNumber, generatedAt }) {
       feed: null,
       gracePeriod: null,
       verified: false,
-      blocker: "Canonical Robinhood Chain sequencer uptime feed is not independently verified",
+      blocker: "Official docs publish a websocket sequencer feed but no canonical onchain uptime-feed proxy",
     },
     policy: {
       maxAge: "Each row uses the heartbeat published for its exact proxy in the Chainlink directory",
       lifecycleStatus: "Desired reviewed configuration; not evidence that a contract is deployed or configured",
       candidateCrypto: "Requires separate wrapper provenance, liquidity, and protocol risk approval before enablement",
     },
+    assetCount: assets.length,
     assets,
   };
 }
