@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { Test } from "forge-std/Test.sol";
 
 import { ConfigureStaticsOracle } from "script/ConfigureStaticsOracle.s.sol";
@@ -74,6 +75,109 @@ contract DeploymentScriptsTest is Test {
             )
         );
         configurator.verify(oracle, manifest);
+    }
+
+    function test_ManifestGracePeriodUsesCheckedUint32Conversion() external {
+        vm.chainId(4663);
+        OracleFeedTestMock sequencer = new OracleFeedTestMock(0, "Sequencer");
+
+        StaticsOracle upperBoundOracle = new StaticsOracle(address(configurator));
+        configurator.configure(upperBoundOracle, _sequencerManifest(sequencer, type(uint32).max));
+        assertEq(upperBoundOracle.sequencerConfig().gracePeriod, type(uint32).max);
+
+        uint256 overflowingGracePeriod = uint256(type(uint32).max) + 1;
+        StaticsOracle overflowOracle = new StaticsOracle(address(configurator));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                SafeCast.SafeCastOverflowedUintDowncast.selector, 32, overflowingGracePeriod
+            )
+        );
+        configurator.configure(
+            overflowOracle, _sequencerManifest(sequencer, overflowingGracePeriod)
+        );
+        assertEq(overflowOracle.registryVersion(), 0);
+    }
+
+    function test_VerificationDetectsKindAndDescriptionHashDrift() external {
+        vm.chainId(4663);
+        vm.warp(10 days);
+        OracleFeedTestMock sequencer = new OracleFeedTestMock(0, "Sequencer");
+        OracleFeedTestMock feed = new OracleFeedTestMock(8, "DEPLOY / USD");
+        OracleTokenTestMock enabledToken = new OracleTokenTestMock(18);
+        OracleTokenTestMock candidateToken = new OracleTokenTestMock(18);
+        sequencer.setRoundData(1, 0, block.timestamp - 2 hours, block.timestamp, 1);
+        feed.setRound(100e8, block.timestamp);
+
+        bytes32 descriptionHash = keccak256("DEPLOY / USD");
+        string memory manifest =
+            _manifest(sequencer, feed, enabledToken, candidateToken, descriptionHash);
+        StaticsOracle oracle = new StaticsOracle(address(configurator));
+        configurator.configure(oracle, manifest);
+
+        vm.startPrank(address(configurator));
+        oracle.disableAsset(address(enabledToken));
+        oracle.updateAsset(
+            address(enabledToken),
+            _input(address(feed), descriptionHash, IStaticsOracle.AssetKind.STABLE)
+        );
+        vm.stopPrank();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ConfigureStaticsOracle.DeployedStateMismatch.selector, "ENABLED", "kind"
+            )
+        );
+        configurator.verify(oracle, manifest);
+
+        bytes32 replacementHash = keccak256("REPLACEMENT / USD");
+        vm.mockCall(
+            address(feed), abi.encodeWithSignature("description()"), abi.encode("REPLACEMENT / USD")
+        );
+        vm.startPrank(address(configurator));
+        oracle.disableAsset(address(enabledToken));
+        oracle.updateAsset(
+            address(enabledToken),
+            _input(address(feed), replacementHash, IStaticsOracle.AssetKind.CRYPTO)
+        );
+        vm.stopPrank();
+        vm.clearMockedCalls();
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ConfigureStaticsOracle.DeployedStateMismatch.selector,
+                "ENABLED",
+                "feedDescriptionHash"
+            )
+        );
+        configurator.verify(oracle, manifest);
+    }
+
+    function _input(
+        address feed,
+        bytes32 descriptionHash,
+        IStaticsOracle.AssetKind kind
+    ) internal pure returns (IStaticsOracle.AssetOracleConfigInput memory) {
+        return IStaticsOracle.AssetOracleConfigInput({
+            feed: feed,
+            feedDescriptionHash: descriptionHash,
+            maxAge: 1 hours,
+            tokenDecimals: 18,
+            feedDecimals: 8,
+            kind: kind,
+            checkOraclePause: false
+        });
+    }
+
+    function _sequencerManifest(
+        OracleFeedTestMock sequencer,
+        uint256 gracePeriod
+    ) internal pure returns (string memory) {
+        return string.concat(
+            "{\"sequencer\":{\"verified\":true,\"feed\":\"",
+            vm.toString(address(sequencer)),
+            "\",\"gracePeriod\":",
+            vm.toString(gracePeriod),
+            "},\"assetCount\":0,\"assets\":[]}"
+        );
     }
 
     function _manifest(
