@@ -40,6 +40,7 @@ abstract contract StaticsOracle is Ownable2Step, IStaticsOracle {
     error StockOraclePaused(address token);
     error SequencerFeedCallFailed(address feed);
     error AssetEnablementFailed(address token, OracleStatus status);
+    error OwnershipRenunciationDisabled();
 
     event AssetRegistered(
         address indexed token, address indexed feed, uint64 indexed version, bytes32 configHash
@@ -58,6 +59,11 @@ abstract contract StaticsOracle is Ownable2Step, IStaticsOracle {
     constructor(
         address initialOwner
     ) Ownable(initialOwner) { }
+
+    /// @notice Preserve an administrative recovery path for feed and lifecycle changes.
+    function renounceOwnership() public pure override {
+        revert OwnershipRenunciationDisabled();
+    }
 
     function assetConfig(
         address token

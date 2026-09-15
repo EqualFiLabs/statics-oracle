@@ -117,6 +117,13 @@ contract StaticsOracleRegistryTest is Test {
         oracle.registerAsset(address(token), input);
     }
 
+    function test_RevertWhen_OwnerRenouncesRecoveryAuthority() external {
+        vm.expectRevert(StaticsOracle.OwnershipRenunciationDisabled.selector);
+        oracle.renounceOwnership();
+
+        assertEq(oracle.owner(), address(this));
+    }
+
     function test_EnabledBindingCannotMutateSilently() external {
         oracle.registerAsset(address(token), _cryptoInput(address(feed)));
         _configureHealthySequencer();
