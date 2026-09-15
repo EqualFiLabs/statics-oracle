@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { Script } from "forge-std/Script.sol";
 
 import { StaticsOracle } from "src/StaticsOracle.sol";
 import { IStaticsOracle } from "src/interfaces/IStaticsOracle.sol";
 
 contract ConfigureStaticsOracle is Script {
+    using SafeCast for uint256;
+
     uint256 internal constant ROBINHOOD_MAINNET_CHAIN_ID = 4663;
     string internal constant DEFAULT_MANIFEST = "config/robinhood-mainnet.assets.json";
 
@@ -46,9 +49,9 @@ contract ConfigureStaticsOracle is Script {
                     feedDescriptionHash: vm.parseJsonBytes32(
                         manifest, _key(i, "feedDescriptionHash")
                     ),
-                    maxAge: uint32(vm.parseJsonUint(manifest, _key(i, "maxAge"))),
-                    tokenDecimals: uint8(vm.parseJsonUint(manifest, _key(i, "tokenDecimals"))),
-                    feedDecimals: uint8(vm.parseJsonUint(manifest, _key(i, "feedDecimals"))),
+                    maxAge: vm.parseJsonUint(manifest, _key(i, "maxAge")).toUint32(),
+                    tokenDecimals: vm.parseJsonUint(manifest, _key(i, "tokenDecimals")).toUint8(),
+                    feedDecimals: vm.parseJsonUint(manifest, _key(i, "feedDecimals")).toUint8(),
                     kind: _kind(vm.parseJsonString(manifest, _key(i, "kind"))),
                     checkOraclePause: vm.parseJsonBool(manifest, _key(i, "checkOraclePause"))
                 })
@@ -80,6 +83,12 @@ contract ConfigureStaticsOracle is Script {
             if (live.feed != vm.parseJsonAddress(manifest, _key(i, "feed"))) {
                 revert DeployedStateMismatch(symbol, "feed");
             }
+            if (
+                live.feedDescriptionHash
+                    != vm.parseJsonBytes32(manifest, _key(i, "feedDescriptionHash"))
+            ) {
+                revert DeployedStateMismatch(symbol, "feedDescriptionHash");
+            }
             if (live.tokenDecimals != vm.parseJsonUint(manifest, _key(i, "tokenDecimals"))) {
                 revert DeployedStateMismatch(symbol, "tokenDecimals");
             }
@@ -91,6 +100,9 @@ contract ConfigureStaticsOracle is Script {
             }
             if (live.checkOraclePause != vm.parseJsonBool(manifest, _key(i, "checkOraclePause"))) {
                 revert DeployedStateMismatch(symbol, "checkOraclePause");
+            }
+            if (live.kind != _kind(vm.parseJsonString(manifest, _key(i, "kind")))) {
+                revert DeployedStateMismatch(symbol, "kind");
             }
 
             bool enabled = _equal(vm.parseJsonString(manifest, _key(i, "status")), "ENABLED");
@@ -111,7 +123,7 @@ contract ConfigureStaticsOracle is Script {
     ) internal pure returns (address feed, uint32 gracePeriod) {
         if (!vm.parseJsonBool(manifest, ".sequencer.verified")) revert UnverifiedSequencer();
         feed = vm.parseJsonAddress(manifest, ".sequencer.feed");
-        gracePeriod = uint32(vm.parseJsonUint(manifest, ".sequencer.gracePeriod"));
+        gracePeriod = vm.parseJsonUint(manifest, ".sequencer.gracePeriod").toUint32();
     }
 
     function _requireRobinhoodMainnet() internal view {
