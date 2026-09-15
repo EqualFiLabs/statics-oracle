@@ -38,6 +38,7 @@ abstract contract StaticsOracle is Ownable2Step, IStaticsOracle {
     error StockPauseCheckRequired(address token);
     error StockPauseCheckFailed(address token);
     error StockOraclePaused(address token);
+    error OwnershipRenunciationDisabled();
 
     event AssetRegistered(
         address indexed token, address indexed feed, uint64 indexed version, bytes32 configHash
@@ -55,6 +56,11 @@ abstract contract StaticsOracle is Ownable2Step, IStaticsOracle {
     constructor(
         address initialOwner
     ) Ownable(initialOwner) { }
+
+    /// @notice Preserve an administrative recovery path for feed and lifecycle changes.
+    function renounceOwnership() public pure override {
+        revert OwnershipRenunciationDisabled();
+    }
 
     function assetConfig(
         address token
