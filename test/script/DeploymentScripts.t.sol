@@ -5,18 +5,51 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { Test } from "forge-std/Test.sol";
 
 import { ConfigureStaticsOracle } from "script/ConfigureStaticsOracle.s.sol";
+import {
+    DeployRobinhoodSequencerAvailabilityFeed
+} from "script/DeployRobinhoodSequencerAvailabilityFeed.s.sol";
 import { DeployStaticsOracle } from "script/DeployStaticsOracle.s.sol";
+import { RobinhoodSequencerAvailabilityFeed } from "src/RobinhoodSequencerAvailabilityFeed.sol";
 import { StaticsOracle } from "src/StaticsOracle.sol";
 import { IStaticsOracle } from "src/interfaces/IStaticsOracle.sol";
 import { OracleFeedTestMock, OracleTokenTestMock } from "test/mocks/OracleTestMocks.sol";
 
 contract DeploymentScriptsTest is Test {
     DeployStaticsOracle internal deployer;
+    DeployRobinhoodSequencerAvailabilityFeed internal sequencerDeployer;
     ConfigureStaticsOracle internal configurator;
 
     function setUp() external {
         deployer = new DeployStaticsOracle();
+        sequencerDeployer = new DeployRobinhoodSequencerAvailabilityFeed();
         configurator = new ConfigureStaticsOracle();
+    }
+
+    function test_SequencerSignalDeploymentRequiresRobinhoodAndSafeQuorum() external {
+        address[] memory observers = new address[](3);
+        observers[0] = address(0x1000);
+        observers[1] = address(0x2000);
+        observers[2] = address(0x3000);
+
+        vm.chainId(1);
+        vm.expectRevert(
+            abi.encodeWithSelector(RobinhoodSequencerAvailabilityFeed.WrongChain.selector, 4663, 1)
+        );
+        sequencerDeployer.deploy(address(this), observers, 2);
+
+        vm.chainId(4663);
+        RobinhoodSequencerAvailabilityFeed feed =
+            sequencerDeployer.deploy(address(this), observers, 2);
+        assertEq(feed.owner(), address(this));
+        assertEq(feed.observers(), observers);
+        assertEq(feed.threshold(), 2);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RobinhoodSequencerAvailabilityFeed.InvalidThreshold.selector, 1, 3
+            )
+        );
+        sequencerDeployer.deploy(address(this), observers, 1);
     }
 
     function test_DeploymentRequiresRobinhoodAndExplicitOwner() external {
