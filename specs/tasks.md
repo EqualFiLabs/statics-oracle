@@ -235,11 +235,35 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - nonzero = unavailable.
     - _Requirements: 7.2, 7.3, 12.7, 12.8_
 
-  - [x] 6.3 Add release gate for canonical sequencer feed
-    - Do NOT add a guessed Robinhood Chain uptime-feed address.
-    - Keep manifest sequencer state unverified until an authoritative source is found.
-    - Mainnet production enablement SHALL require an independently verified address.
+  - [x] 6.3 Add release gate for observed sequencer feed
+    - Do NOT add a guessed or placeholder uptime-feed address.
+    - Keep manifest sequencer state unverified until the threshold feed is deployed and reviewed.
+    - Mainnet production enablement SHALL verify bytecode, observer set, threshold, owner, and policy.
     - _Requirements: 7.1, 7.4, 7.5_
+
+  - [x] 6.4 Implement threshold observed-availability feed
+    - Require at least three observers and a strict-majority threshold.
+    - Verify sorted EIP-712 signatures and a recent canonical block hash onchain.
+    - Expire the healthy lease after at most 95 seconds without requiring a write.
+    - Invalidate the lease when the observer set changes.
+    - _Requirements: 7.1-7.8_
+
+  - [x] 6.5 Implement independent observer and coordinator services
+    - Require every signer to check the direct sequencer feed against an independent RPC view.
+    - Keep relay permissionless and verify recovered signers against the onchain set.
+    - Poll every 30 seconds and fail closed when quorum cannot be assembled.
+    - _Requirements: 7.2-7.4, 7.7_
+
+  - [x] 6.6 Add signal deployment and integration tests
+    - Gate deployment to Robinhood Mainnet chain ID `4663`.
+    - Cover quorum, expiry, recovery, rotation, bad signatures, invalid blocks, and unsafe config.
+    - Verify the feed against `StaticsOracle` recovery grace and a pinned Robinhood fork.
+    - _Requirements: 7.1-7.8, 12.7, 12.8, 13.10_
+
+  - [x] 6.7 Document multi-operator production operation
+    - Document trust boundaries, independent infrastructure, monitoring, rotation, and incidents.
+    - State that this is not a canonical Robinhood or Chainlink-managed feed.
+    - _Requirements: 7.1-7.8, 14.1-14.7_
 
 - [x] 7. Implement oracle price evaluation
   - [x] 7.1 Implement `_evaluatePrice`
@@ -709,15 +733,10 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Verify candidates as identity-valid even when not enabled.
     - _Requirements: 3.1-3.9, 5.7, 11.1-11.7_
 
-  - [ ] 22.3 Add production sequencer fork test only after canonical address resolution
-    - Blocked: official Robinhood documentation publishes a websocket sequencer feed,
-      but no authoritative source currently identifies a canonical onchain uptime-feed proxy.
-    - Do not block deterministic local testing on an unverified address.
-    - Once resolved:
-      - add it to the manifest,
-      - verify code,
-      - verify Chainlink interface,
-      - add fork coverage.
+  - [ ] 22.3 Add production sequencer fork test after threshold feed deployment
+    - Blocked until the reviewed observed-availability feed is deployed on Robinhood Mainnet.
+    - Do not block deterministic local testing on an undeployed address.
+    - Once deployed, add it to the manifest, verify bytecode and configuration, and add fork coverage.
     - _Requirements: 7.1-7.5_
 
 - [x] 23. Create deployment scripts
@@ -867,7 +886,8 @@ The following MUST be complete before production deployment:
 - [ ] Crypto wrapper provenance reviewed for every enabled crypto asset.
 - [ ] Feed descriptions and decimals validated.
 - [ ] Per-asset `maxAge` values explicitly selected.
-- [ ] Canonical Robinhood Chain sequencer uptime feed resolved from an authoritative source.
+- [ ] Observed sequencer feed deployed and independently reviewed.
+- [ ] Independent observer operators, key custody, and monitoring verified.
 - [ ] Sequencer recovery grace period selected.
 - [ ] Full deterministic test suite passes.
 - [ ] Fuzz/property suite passes.

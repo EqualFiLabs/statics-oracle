@@ -319,7 +319,7 @@ export async function generateManifest({ rpcUrl, blockNumber, generatedAt }) {
       feed: null,
       gracePeriod: null,
       verified: false,
-      blocker: "Official docs publish a websocket sequencer feed but no canonical onchain uptime-feed proxy",
+      blocker: "Observed sequencer feed is not yet deployed and independently reviewed",
     },
     policy: {
       maxAge: "Each row uses the heartbeat published for its exact proxy in the Chainlink directory",

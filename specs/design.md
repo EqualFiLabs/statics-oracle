@@ -145,7 +145,7 @@ The core implementation SHOULD use a single non-upgradeable `StaticsOracle` cont
 flowchart TD
     A[Statics / Integrator] --> O[StaticsOracle]
 
-    O --> S[Sequencer Uptime Feed]
+    O --> S[Observed Sequencer Availability Feed]
     O --> C[AssetOracleConfig]
 
     C --> F[Chainlink Feed Proxy]
@@ -529,9 +529,8 @@ Suggested storage:
 SequencerConfig private _sequencerConfig;
 ```
 
-The feed address SHALL remain unresolved in the specification until verified from an authoritative source.
-
-No placeholder address SHALL be deployed.
+The production address SHALL remain unset until the threshold feed is deployed, reviewed, and
+operated by independent parties. No placeholder address SHALL be configured.
 
 ---
 
@@ -692,7 +691,8 @@ Configuration SHALL validate:
 - contract code exists,
 - feed responds to `latestRoundData()`.
 
-Mainnet deployment tooling SHALL independently verify that the address is the canonical Robinhood Chain sequencer uptime feed before use.
+Mainnet deployment tooling SHALL independently verify the threshold feed deployment, observer
+set, strict-majority threshold, owner, bytecode, and recovery grace period before use.
 
 ---
 
@@ -1046,14 +1046,23 @@ During the coordinated corporate-action window, `oraclePaused()` causes strict S
 
 ## Evaluation
 
-Chainlink L2 uptime feeds conventionally return:
+The self-managed feed uses the Chainlink uptime-feed response convention:
 
 ```text
 0 = up
 1 = down
 ```
 
-V1 SHALL verify the canonical Robinhood deployment before production configuration.
+The feed is explicitly an observed-availability signal, not a Chainlink-managed feed and not
+proof that every user can submit a transaction. At least three independent observers verify
+fresh direct sequencer-feed progress against an independent RPC view. A strict
+majority signs an EIP-712 observation. Any relayer may submit the sorted quorum signatures.
+
+Each renewal creates a healthy lease of at most 95 seconds. With a 30-second polling interval,
+three consecutive failed rounds leave no valid renewal and the read surface reports down. This
+transition requires no transaction. The onchain contract also verifies the signed block hash
+against `blockhash`, rejects current or old blocks, and invalidates the lease on observer-set
+rotation.
 
 When down: `SEQUENCER_DOWN`.
 
@@ -1243,7 +1252,7 @@ test/
 flowchart TD
     A[Generate whitelist manifest]
     B[Review token/feed matrix]
-    C[Resolve canonical sequencer feed]
+    C[Review and deploy observed sequencer feed]
     D[Run live verifier]
     E[Deploy StaticsOracle]
     F[Configure sequencer]
@@ -1557,8 +1566,9 @@ The system trusts:
 1. the explicitly configured Chainlink proxy,
 2. Chainlink's published answer,
 3. Robinhood's `oraclePaused()` signal for configured Stock Tokens,
-4. the configured Robinhood L2 sequencer uptime feed,
-5. the administrator controlling whitelist configuration.
+4. a strict majority of the configured sequencer observers,
+5. the feed owner for observer-set rotation,
+6. the administrator controlling whitelist configuration.
 
 The system does not trust:
 

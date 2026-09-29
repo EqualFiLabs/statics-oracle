@@ -17,7 +17,7 @@ V1 covers:
 - Chainlink Data Feed proxy reads;
 - per-asset freshness and feed-integrity policy;
 - Robinhood Stock Token oracle-pause handling;
-- Robinhood sequencer safety once its canonical uptime feed is verified; and
+- Robinhood sequencer safety through a threshold-attested observed-availability feed; and
 - fixed-component Statics Basket NAV.
 
 V1 intentionally excludes STATICS pricing, Basket Token TWAPs, DEX fallback pricing,
@@ -50,13 +50,30 @@ checks. Never commit RPC URLs, credentials, or signer material.
 
 ## Production release gates
 
-Production configuration must use an independently verified canonical Robinhood Chain
-sequencer uptime-feed proxy and an explicitly reviewed recovery grace period. Neither value
-is assumed by the contracts or this repository while the canonical feed remains unresolved.
-Robinhood's documented websocket sequencer feed is a node-data endpoint, not an onchain
-Chainlink uptime-feed proxy, and cannot be substituted for the required contract address.
+Robinhood does not currently publish a canonical onchain uptime-feed proxy. This repository
+therefore includes a self-managed, Chainlink-interface-compatible observed-availability feed.
+It is not a Chainlink feed and does not prove universal transaction inclusion. A strict
+majority of independent observers must agree on fresh Robinhood sequencer-feed progress and a
+recent block seen through an independent RPC view. If renewals stop, its 95-second healthy lease
+reports expired as soon as chain time reaches the deadline, without requiring a marking
+transaction. Production use still requires deployment,
+independent operators, key custody, monitoring, and an explicitly reviewed recovery grace
+period. See [Sequencer signal operations](docs/SEQUENCER_SIGNAL.md).
 Asset-specific feed heartbeats and `maxAge` policies must likewise be sourced and reviewed
 before an asset is enabled; placeholder safety parameters are not acceptable.
+
+## Sequencer signal development
+
+The `observer/` package contains two separately deployable processes: an observer that signs
+only after checking the direct sequencer feed against an independent RPC, and a permissionless
+coordinator that gathers quorum and relays the observation. Three independent observers with a
+two-signature threshold are the minimum supported set.
+
+```bash
+cd observer
+npm ci
+npm test
+```
 
 ## Whitelist generation
 

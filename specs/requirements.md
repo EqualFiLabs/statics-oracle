@@ -168,11 +168,14 @@ An asset whose token/feed pair has been identified but SHALL NOT become enabled 
 
 #### Acceptance Criteria
 
-1. BEFORE production enablement of sequencer protection, THE canonical Robinhood Chain L2 Sequencer Uptime Feed SHALL be independently resolved and verified.
-2. WHEN the configured sequencer feed reports that the sequencer is down, THE Oracle System SHALL treat external prices as unavailable for protected state-changing operations.
-3. WHEN the sequencer has recently recovered, THE Oracle System SHALL enforce a configured recovery grace period before treating prices as live.
-4. THE Oracle System SHALL NOT fabricate or assume a sequencer-feed address.
-5. IF sequencer protection is required but its configuration is missing or invalid, THEN protected state-changing price reads SHALL fail closed.
+1. BEFORE production enablement, THE configured Robinhood sequencer signal contract, observer set, threshold, and recovery policy SHALL be independently reviewed.
+2. THE observed-availability feed SHALL require a strict majority of at least three independent observers.
+3. EACH observer SHALL verify fresh progress from Robinhood's direct sequencer feed against an independent RPC view before signing a recent block observation.
+4. THE observed-availability feed SHALL become unavailable automatically when quorum renewals stop, without requiring a transaction to mark the sequencer down.
+5. WHEN the configured sequencer feed reports that the sequencer is down, THE Oracle System SHALL treat external prices as unavailable for protected state-changing operations.
+6. WHEN the sequencer has recently recovered, THE Oracle System SHALL enforce a configured recovery grace period before treating prices as live.
+7. THE Oracle System SHALL NOT describe the self-managed observed-availability signal as a canonical or Chainlink-managed uptime feed.
+8. IF sequencer protection is required but its configuration is missing, expired, or invalid, THEN protected state-changing price reads SHALL fail closed.
 
 ---
 
