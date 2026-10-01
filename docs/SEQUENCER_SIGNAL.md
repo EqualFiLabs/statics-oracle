@@ -79,12 +79,19 @@ The observer exposes:
 - `POST /status` for an L1 status proposal; and
 - `POST /heartbeat` for an L2 heartbeat proposal.
 
+Every endpoint requires the observer's bearer token. Configure one distinct token per observer,
+deliver the matching ordered token list to the primary and backup coordinators through secret
+management, and keep observer traffic on an authenticated private network or encrypted overlay.
+Do not expose the signing service directly to the public internet.
+
 It refuses to sign while unknown, rejects proposals that disagree with local state, and checks
 the current onchain observer-set version and status sequence immediately before signing. Every
 heartbeat includes both values in its EIP-712 payload. Observers also compare L2 against the
 authoritative L1 reporter and refuse heartbeat signatures while either value is behind L1.
 
-The coordinator polls every 30 seconds. It gathers status signatures when the L1 state differs
+The coordinator polls every 30 seconds. A backup waits before reading any round state so its block
+evidence and signatures are collected after the delay rather than expiring during it. It gathers
+status signatures when the L1 state differs
 from observer consensus and gathers heartbeat signatures when ten minutes or less remain. It
 also renews immediately when the accepted heartbeat belongs to an earlier status sequence. It
 suppresses renewal while the L2 observer-set version or status sequence is behind L1. It recovers
@@ -100,10 +107,14 @@ cd observer
 npm ci
 npm run check
 npm test
+npm run start:observer
+npm run start:coordinator
 ```
 
-Copy `.env.example` into secret management. Never commit observer keys, relayer keys, or RPC
-URLs.
+Copy `.env.example` into secret management. Generate a separate random observer API token of at
+least 32 bytes for every observer. Never commit API tokens, observer keys, relayer keys, or RPC
+URLs. `RUN_ONCE=true` exits nonzero when reconciliation fails so supervisors and smoke tests can
+detect an unsuccessful round.
 
 ## Deployment sequence
 
@@ -138,6 +149,7 @@ The L2 deployment script requires `SEQUENCER_L1_REPORTER`.
 Alert on:
 
 - observer state disagreement or missing quorum;
+- rejected or excessive observer authentication attempts;
 - three-failure impairment or three-success recovery;
 - retryable creation, redemption failure, expiry, or manual requeue;
 - L1 and L2 observer-set or status-sequence lag;

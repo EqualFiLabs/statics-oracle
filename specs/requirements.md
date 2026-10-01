@@ -183,6 +183,8 @@ An asset whose token/feed pair has been identified but SHALL NOT become enabled 
 13. EACH L2 heartbeat SHALL be signed for the current observer-set version and L1 status sequence, and a heartbeat from an earlier status sequence SHALL NOT restore health after a later status is applied.
 14. AUTHENTICATED configuration and status deliveries SHALL support monotonic catch-up after an earlier retryable expires, while configuration catch-up and observer rotation SHALL leave the feed impaired until fresh health evidence is accepted.
 15. OBSERVERS and coordinators SHALL refuse heartbeat renewal while the Robinhood observer-set version or status sequence differs from the authoritative Ethereum reporter state.
+16. OBSERVER signing endpoints SHALL require a distinct authentication secret per observer and SHALL be operated only across an authenticated private network or encrypted overlay.
+17. A BACKUP coordinator SHALL complete its delay before reading round state or collecting heartbeat signatures, so the canonical block evidence remains fresh when failover submission begins.
 
 ---
 

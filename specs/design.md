@@ -1072,6 +1072,16 @@ Authenticated configuration and status messages may advance monotonically across
 retryable. Configuration catch-up remains impaired, and any status advance requires a heartbeat
 signed for the resulting sequence before the feed can report healthy.
 
+Observer HTTP endpoints require a distinct bearer token per observer and are deployed only behind
+an authenticated private network or encrypted overlay. The coordinator keeps the token list in the
+same order as the observer URL list. A leaked credential therefore authorizes only one observer,
+not the quorum. An unsubmitted newer proposal does not prevent an observer from signing an older
+canonical block that is still newer than the block already accepted onchain.
+
+The primary coordinator collects evidence immediately. A backup coordinator waits first, then
+reads L1 and L2 state and collects fresh block evidence and signatures. The delay never ages a
+previously collected block proof toward the L2 `blockhash` retention boundary.
+
 When down: `SEQUENCER_DOWN`.
 
 When back up:

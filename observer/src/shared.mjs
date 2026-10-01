@@ -49,6 +49,15 @@ export class AvailabilityTracker {
   }
 }
 
+export async function afterBackupDelay({ role, delayMs, action, sleep = defaultSleep }) {
+  if (role === "backup") await sleep(delayMs);
+  return await action();
+}
+
+function defaultSleep(delayMs) {
+  return new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
 export function parseQuantity(value, field) {
   try {
     return BigInt(value);
@@ -113,6 +122,23 @@ export function validateHeartbeat({
   }
   if (heartbeat.validUntil <= now) throw new Error("proposed lease is expired");
   if (heartbeat.validUntil > now + LEASE_SECONDS) throw new Error("proposed lease is too long");
+}
+
+export function validateHeartbeatSigningProgress({
+  heartbeat,
+  lastOnchainBlock,
+  lastSignedBlock,
+  lastSignedHash,
+}) {
+  if (heartbeat.observedBlockNumber <= lastOnchainBlock) {
+    throw new Error("proposed block is not newer than the accepted block");
+  }
+  if (
+    heartbeat.observedBlockNumber === lastSignedBlock
+    && heartbeat.observedBlockHash !== lastSignedHash
+  ) {
+    throw new Error("refusing a conflicting block");
+  }
 }
 
 export function validateObservedHeads({ directHead, referenceHead, directReferenceBlock, now }) {

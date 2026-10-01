@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { createPublicClient, defineChain, getAddress, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
+import { isAuthorizedBearer, validateAuthToken } from "./auth.mjs";
 import {
   feedAbi,
   heartbeatDomain,
@@ -22,6 +23,7 @@ import {
   serializeBigInts,
   validateCrossChainState,
   validateHeartbeat,
+  validateHeartbeatSigningProgress,
   validateObservedHeads,
   validateStatusReport,
 } from "./shared.mjs";
@@ -37,6 +39,7 @@ const account = privateKeyToAccount(parsePrivateKey("OBSERVER_PRIVATE_KEY"));
 const host = process.env.OBSERVER_HOST ?? "127.0.0.1";
 const port = Number(process.env.OBSERVER_PORT ?? "8787");
 const pollInterval = Number(process.env.POLL_INTERVAL_MS ?? String(POLL_INTERVAL_MS));
+const authToken = validateAuthToken(requireEnv("OBSERVER_AUTH_TOKEN"), "OBSERVER_AUTH_TOKEN");
 if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new Error("OBSERVER_PORT is invalid");
 if (!Number.isFinite(pollInterval) || pollInterval <= 0) throw new Error("POLL_INTERVAL_MS must be positive");
 const tracker = new AvailabilityTracker();
@@ -115,12 +118,12 @@ async function signHeartbeat(rawHeartbeat) {
     l2ObserverSetVersion: version,
     l2StatusSequence: statusSequence,
   });
-  if (heartbeat.observedBlockNumber <= lastBlock || heartbeat.observedBlockNumber < lastSignedBlock) {
-    throw new Error("proposed block is not newer");
-  }
-  if (heartbeat.observedBlockNumber === lastSignedBlock && heartbeat.observedBlockHash !== lastSignedHash) {
-    throw new Error("refusing a conflicting block");
-  }
+  validateHeartbeatSigningProgress({
+    heartbeat,
+    lastOnchainBlock: lastBlock,
+    lastSignedBlock,
+    lastSignedHash,
+  });
   const referenceBlock = await getBlock(robinhoodRpcUrl, heartbeat.observedBlockNumber);
   validateHeartbeat({
     heartbeat,
@@ -189,6 +192,10 @@ timer.unref();
 
 createServer(async (request, response) => {
   try {
+    if (!isAuthorizedBearer(request.headers.authorization, authToken)) {
+      respond(response, 401, { error: "unauthorized" });
+      return;
+    }
     if (request.method === "GET" && request.url === "/health") {
       respond(response, 200, { ok: true, observer: account.address, ...tracker.snapshot() });
       return;

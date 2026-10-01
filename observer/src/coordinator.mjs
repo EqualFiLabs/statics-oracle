@@ -8,6 +8,7 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
+import { parseObserverAuthTokens } from "./auth.mjs";
 import {
   feedAbi,
   heartbeatDomain,
@@ -23,6 +24,7 @@ import {
   ObserverState,
   POLL_INTERVAL_MS,
   STATUS_VALIDITY_SECONDS,
+  afterBackupDelay,
   heartbeatDue,
   normalizeHeartbeat,
   normalizeStatusReport,
@@ -39,6 +41,14 @@ const directFeedUrl = requireEnv("DIRECT_SEQUENCER_FEED_URL");
 const robinhoodRpcUrl = requireEnv("ROBINHOOD_RPC_URL");
 const ethereumRpcUrl = requireEnv("ETHEREUM_RPC_URL");
 const observerUrls = requireEnv("OBSERVER_URLS").split(",").map((value) => value.trim());
+const observerAuthTokens = parseObserverAuthTokens(
+  requireEnv("OBSERVER_AUTH_TOKENS"),
+  observerUrls.length,
+);
+const observerEndpoints = observerUrls.map((url, index) => ({
+  url,
+  authToken: observerAuthTokens[index],
+}));
 const l1Account = privateKeyToAccount(parsePrivateKey("L1_RELAYER_PRIVATE_KEY"));
 const l2Account = privateKeyToAccount(parsePrivateKey("L2_RELAYER_PRIVATE_KEY"));
 const robinhoodChainId = Number(process.env.ROBINHOOD_CHAIN_ID ?? "4663");
@@ -68,10 +78,13 @@ const l2Wallet = createWalletClient({ account: l2Account, chain: robinhoodChain,
 const l1Public = createPublicClient({ chain: ethereumChain, transport: http() });
 const l1Wallet = createWalletClient({ account: l1Account, chain: ethereumChain, transport: http() });
 
-async function requestJson(url, path, body) {
-  const response = await fetch(new URL(path, url), {
+async function requestJson(observer, path, body) {
+  const response = await fetch(new URL(path, observer.url), {
     method: body ? "POST" : "GET",
-    headers: body ? { "content-type": "application/json" } : undefined,
+    headers: {
+      authorization: `Bearer ${observer.authToken}`,
+      ...(body ? { "content-type": "application/json" } : {}),
+    },
     body: body ? JSON.stringify(body) : undefined,
     signal: AbortSignal.timeout(12_000),
   });
@@ -81,7 +94,9 @@ async function requestJson(url, path, body) {
 }
 
 async function observerConsensus(threshold) {
-  const settled = await Promise.allSettled(observerUrls.map((url) => requestJson(url, "/health")));
+  const settled = await Promise.allSettled(
+    observerEndpoints.map((observer) => requestJson(observer, "/health")),
+  );
   const counts = new Map([[ObserverState.HEALTHY, 0], [ObserverState.IMPAIRED, 0]]);
   for (const result of settled) {
     if (result.status === "fulfilled" && counts.has(result.value.state)) {
@@ -95,7 +110,9 @@ async function observerConsensus(threshold) {
 
 async function collectSignatures({ path, field, value, observers, domain, types, primaryType }) {
   const settled = await Promise.allSettled(
-    observerUrls.map((url) => requestJson(url, path, { [field]: serializeBigInts(value) })),
+    observerEndpoints.map((observer) =>
+      requestJson(observer, path, { [field]: serializeBigInts(value) }),
+    ),
   );
   return await recoverAuthorizedSignatures({
     settled,
@@ -108,10 +125,6 @@ async function collectSignatures({ path, field, value, observers, domain, types,
       signature,
     }),
   });
-}
-
-async function maybeDelayBackup() {
-  if (relayerRole === "backup") await new Promise((resolve) => setTimeout(resolve, backupDelay));
 }
 
 async function reconcileStatus() {
@@ -145,7 +158,6 @@ async function reconcileStatus() {
     primaryType: "StatusReport",
   });
   if (quorum.length < threshold) throw new Error(`status quorum unavailable: ${quorum.length}/${threshold}`);
-  await maybeDelayBackup();
   const latestSequence = await l1Public.readContract({ address: reporterAddress, abi: reporterAbi, functionName: "statusSequence" });
   if (latestSequence !== sequence) return desiredHealthy;
   const args = [report, quorum.map((entry) => entry.signature)];
@@ -229,7 +241,6 @@ async function renewHeartbeat() {
     primaryType: "Heartbeat",
   });
   if (quorum.length < threshold) throw new Error(`heartbeat quorum unavailable: ${quorum.length}/${threshold}`);
-  await maybeDelayBackup();
   const [latestUntil, finalL2Version, finalL2StatusSequence, finalL1Version, finalL1StatusSequence] =
     await Promise.all([
       l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "healthyUntil" }),
@@ -269,8 +280,14 @@ async function renewHeartbeat() {
 }
 
 async function runRound() {
-  const healthy = await reconcileStatus();
-  if (healthy) await renewHeartbeat();
+  await afterBackupDelay({
+    role: relayerRole,
+    delayMs: backupDelay,
+    action: async () => {
+      const healthy = await reconcileStatus();
+      if (healthy) await renewHeartbeat();
+    },
+  });
 }
 
 const [, , , configuredChildChainId, configuredFeed, configuredReporter] = await Promise.all([
@@ -290,6 +307,7 @@ do {
     await runRound();
   } catch (error) {
     process.stderr.write(`${new Date().toISOString()} round failed: ${error instanceof Error ? error.message : "unknown error"}\n`);
+    if (runOnce) process.exitCode = 1;
   }
   if (!runOnce) await new Promise((resolve) => setTimeout(resolve, pollInterval));
 } while (!runOnce);

@@ -5,11 +5,13 @@ import {
   AvailabilityTracker,
   LEASE_SECONDS,
   ObserverState,
+  afterBackupDelay,
   heartbeatDue,
   normalizeHeartbeat,
   normalizeStatusReport,
   validateCrossChainState,
   validateHeartbeat,
+  validateHeartbeatSigningProgress,
   validateObservedHeads,
   validateStatusReport,
 } from "../src/shared.mjs";
@@ -60,6 +62,30 @@ test("restart starts unknown", () => {
   assert.equal(tracker.snapshot().state, ObserverState.UNKNOWN);
 });
 
+test("backup delay happens before collecting fresh round evidence", async () => {
+  const events = [];
+  const result = await afterBackupDelay({
+    role: "backup",
+    delayMs: 45_000,
+    sleep: async (delayMs) => events.push(`delay:${delayMs}`),
+    action: async () => {
+      events.push("collect");
+      return "done";
+    },
+  });
+  assert.equal(result, "done");
+  assert.deepEqual(events, ["delay:45000", "collect"]);
+
+  let primarySlept = false;
+  await afterBackupDelay({
+    role: "primary",
+    delayMs: 45_000,
+    sleep: async () => { primarySlept = true; },
+    action: async () => events.push("primary"),
+  });
+  assert.equal(primarySlept, false);
+});
+
 test("accepts fresh direct and reference evidence with a 15 minute lease", () => {
   assert.doesNotThrow(() => validateHeartbeat(validHeartbeatInput()));
 });
@@ -76,6 +102,30 @@ test("rejects disagreement and overlong leases", () => {
   const staleStatus = validHeartbeatInput();
   staleStatus.heartbeat.statusSequence -= 1n;
   assert.throws(() => validateHeartbeat(staleStatus), /status sequence changed/);
+});
+
+test("unsubmitted newer proposals cannot block a still-valid canonical heartbeat", () => {
+  const input = validHeartbeatInput();
+  assert.doesNotThrow(() => validateHeartbeatSigningProgress({
+    heartbeat: input.heartbeat,
+    lastOnchainBlock: 90n,
+    lastSignedBlock: 99n,
+    lastSignedHash: `0x${"22".repeat(32)}`,
+  }));
+
+  assert.throws(() => validateHeartbeatSigningProgress({
+    heartbeat: input.heartbeat,
+    lastOnchainBlock: 98n,
+    lastSignedBlock: 99n,
+    lastSignedHash: `0x${"22".repeat(32)}`,
+  }), /accepted block/);
+
+  assert.throws(() => validateHeartbeatSigningProgress({
+    heartbeat: input.heartbeat,
+    lastOnchainBlock: 90n,
+    lastSignedBlock: 98n,
+    lastSignedHash: `0x${"22".repeat(32)}`,
+  }), /conflicting block/);
 });
 
 test("rejects future-dated heads before local recovery", () => {

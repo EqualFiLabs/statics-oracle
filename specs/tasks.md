@@ -255,7 +255,9 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Require observers and coordinators to suppress heartbeats while L2 configuration or status trails L1.
     - Require three consecutive failures for impairment and three successes for recovery.
     - Poll every 30 seconds, renew L2 every five minutes, and verify recovered signers.
-    - _Requirements: 7.2-7.4, 7.7_
+    - Authenticate each observer endpoint with a distinct secret over a private network.
+    - Delay a backup before it reads state or collects block evidence and signatures.
+    - _Requirements: 7.2-7.4, 7.7, 7.16, 7.17_
 
   - [x] 6.6 Add signal deployment and integration tests
     - Support Ethereum Mainnet to Robinhood Mainnet and Sepolia to Robinhood Testnet.
