@@ -149,6 +149,21 @@ contract RobinhoodSequencerAvailabilityFeedTest is Test {
         feed.applyStatus(2, 1, true, uint64(block.timestamp));
     }
 
+    function test_AuthenticatedLatestStatusCanAdvanceAcrossMissingRetryable() external {
+        _configure(1, 0);
+
+        vm.prank(aliasReporter);
+        feed.applyStatus(1, 3, true, uint64(block.timestamp));
+        assertEq(feed.statusSequence(), 3);
+        assertTrue(feed.l1Healthy());
+        assertEq(uint8(feed.availabilityReason()), 3);
+
+        vm.prank(aliasReporter);
+        feed.applyStatus(1, 2, false, uint64(block.timestamp));
+        assertEq(feed.statusSequence(), 3);
+        assertTrue(feed.l1Healthy());
+    }
+
     function test_HeartbeatRequiresQuorumCanonicalBlockAndBoundedLease() external {
         _configure(1, 0);
         _status(1, true);

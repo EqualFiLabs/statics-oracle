@@ -49,7 +49,7 @@ grace starts only after a later effective recovery on L2.
 - accepts only fresh, transition-only, sequential quorum reports;
 - starts impaired and fails closed during observer rotation;
 - creates retryable tickets through the chain-specific delayed inbox;
-- retains accepted transitions and can requeue an exact missing status sequence or configuration through Safe-only functions;
+- can requeue the latest status or configuration through Safe-only functions;
 - has explicit retryable gas and refund configuration; and
 - disables ownership renunciation.
 
@@ -57,7 +57,7 @@ grace starts only after a later effective recovery on L2.
 
 - has no owner or independent administration;
 - accepts configuration and status only from the aliased L1 reporter;
-- ignores duplicate or stale cross-chain messages and rejects sequence gaps;
+- ignores duplicate or stale cross-chain messages and accepts only monotonic status progress;
 - verifies sorted heartbeat signatures and recent canonical block hashes;
 - expires heartbeats after at most 15 minutes; and
 - exposes `UNINITIALIZED`, `HEALTHY`, `L1_REPORTED_IMPAIRED`, or `LEASE_EXPIRED` diagnostics.
@@ -148,10 +148,10 @@ the status sequence, replaces the observer set, and queues the new configuration
 the threshold to preserve liveness. Prepare new operators first, rotate, confirm L2 redemption,
 then re-establish health through three successful samples and a new transition.
 
-If a retryable is not redeemed, the Safe can requeue the exact missing status sequence or the
-latest configuration after funding and gas parameters are checked. Historical status retention
-allows sequence gaps to be filled in order. These methods are not public because arbitrary
-retries could drain the prefunded reporter.
+If a retryable is not redeemed, a later authenticated status can safely advance across the
+missing sequence, or the Safe can requeue the latest status or configuration after funding and
+gas parameters are checked. Older deliveries become no-ops. The requeue methods are not public
+because arbitrary retries could drain the prefunded reporter.
 
 ## Known limits
 

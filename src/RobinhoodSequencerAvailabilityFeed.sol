@@ -65,7 +65,6 @@ contract RobinhoodSequencerAvailabilityFeed is IAggregatorV3, EIP712 {
     error NotAliasedL1Reporter(address caller, address expected);
     error ConfigurationVersionGap(uint64 expected, uint64 supplied);
     error StatusConfigurationNotApplied(uint64 expected, uint64 supplied);
-    error StatusSequenceGap(uint64 expected, uint64 supplied);
     error InvalidObserverCount(uint256 count);
     error InvalidThreshold(uint256 supplied, uint256 observerCount);
     error ObserversNotStrictlyIncreasing(address previous, address current);
@@ -176,10 +175,6 @@ contract RobinhoodSequencerAvailabilityFeed is IAggregatorV3, EIP712 {
             revert StatusConfigurationNotApplied(observerSetVersion, reportObserverSetVersion);
         }
         if (newStatusSequence <= statusSequence) return;
-        uint64 expectedSequence = statusSequence + 1;
-        if (newStatusSequence != expectedSequence) {
-            revert StatusSequenceGap(expectedSequence, newStatusSequence);
-        }
         _materializeExpiry();
         statusSequence = newStatusSequence;
         l1Healthy = newHealthy;
