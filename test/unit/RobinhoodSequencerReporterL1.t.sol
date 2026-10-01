@@ -6,6 +6,9 @@ import { Test } from "forge-std/Test.sol";
 
 import { RobinhoodSequencerReporterL1 } from "src/RobinhoodSequencerReporterL1.sol";
 import { IArbitrumDelayedInbox } from "src/interfaces/IArbitrumDelayedInbox.sol";
+import {
+    IRobinhoodSequencerAvailabilityFeed
+} from "src/interfaces/IRobinhoodSequencerAvailabilityFeed.sol";
 
 contract RobinhoodSequencerReporterL1Test is Test {
     uint256 internal constant KEY_A = 0xA11CE;
@@ -140,6 +143,51 @@ contract RobinhoodSequencerReporterL1Test is Test {
         assertFalse(reporter.healthy());
         assertEq(reporter.observerSetVersion(), 2);
         assertEq(reporter.statusSequence(), 2);
+    }
+
+    function test_SafeCanRequeueExactMissingHistoricalStatus() external {
+        address target = address(0xCAFE);
+        reporter.initializeL2Feed(target);
+        RobinhoodSequencerReporterL1.StatusReport memory up = _report(true);
+        reporter.submitStatusReport(up, _sign(up, 2));
+        RobinhoodSequencerReporterL1.StatusReport memory down = _report(false);
+        reporter.submitStatusReport(down, _sign(down, 2));
+
+        (uint64 recordedVersion, uint64 recordedAt, bool recordedHealthy, bool exists) =
+            reporter.statusHistory(1);
+        assertEq(recordedVersion, 1);
+        assertEq(recordedAt, up.observedAt);
+        assertTrue(recordedHealthy);
+        assertTrue(exists);
+
+        bytes memory message = abi.encodeCall(
+            IRobinhoodSequencerAvailabilityFeed.applyStatus,
+            (uint64(1), uint64(1), true, up.observedAt)
+        );
+        uint256 fee = SUBMISSION_FEE + STATUS_GAS * GAS_PRICE;
+        vm.expectCall(
+            inbox,
+            fee,
+            abi.encodeCall(
+                IArbitrumDelayedInbox.createRetryableTicketNoRefundAliasRewrite,
+                (
+                    target,
+                    0,
+                    SUBMISSION_FEE,
+                    address(0xBEEF),
+                    address(0xBEEF),
+                    STATUS_GAS,
+                    GAS_PRICE,
+                    message
+                )
+            )
+        );
+        reporter.requeueStatus(1);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(RobinhoodSequencerReporterL1.StatusNotRecorded.selector, 3)
+        );
+        reporter.requeueStatus(3);
     }
 
     function test_AdminControlsAreOwnerOnlyAndRenunciationDisabled() external {

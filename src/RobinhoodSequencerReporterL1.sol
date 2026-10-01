@@ -44,9 +44,17 @@ contract RobinhoodSequencerReporterL1 is Ownable2Step, EIP712, ReentrancyGuard {
         uint64 validUntil;
     }
 
+    struct RecordedStatus {
+        uint64 observerSetVersion;
+        uint64 observedAt;
+        bool healthy;
+        bool exists;
+    }
+
     IArbitrumDelayedInbox public immutable inbox;
     uint256 public immutable childChainId;
     mapping(address observer => bool authorized) public isObserver;
+    mapping(uint64 sequence => RecordedStatus status) public statusHistory;
     address[] private _observers;
 
     address public l2Feed;
@@ -70,6 +78,7 @@ contract RobinhoodSequencerReporterL1 is Ownable2Step, EIP712, ReentrancyGuard {
     error ObserverSetVersionMismatch(uint64 expected, uint64 supplied);
     error StatusSequenceMismatch(uint64 expected, uint64 supplied);
     error StatusUnchanged(bool healthy);
+    error StatusNotRecorded(uint64 sequence);
     error ObservationInFuture(uint64 observedAt, uint256 currentTimestamp);
     error ObservationTooOld(uint64 observedAt, uint256 oldestAllowed);
     error ReportExpired(uint64 validUntil, uint256 currentTimestamp);
@@ -187,7 +196,15 @@ contract RobinhoodSequencerReporterL1 is Ownable2Step, EIP712, ReentrancyGuard {
         healthy = report.healthy;
         statusSequence = report.sequence;
         lastObservedAt = report.observedAt;
-        ticketId = _queueStatus();
+        statusHistory[report.sequence] = RecordedStatus({
+            observerSetVersion: report.observerSetVersion,
+            observedAt: report.observedAt,
+            healthy: report.healthy,
+            exists: true
+        });
+        ticketId = _queueStatus(
+            report.observerSetVersion, report.sequence, report.healthy, report.observedAt
+        );
         emit StatusTransitionAccepted(
             report.sequence, report.healthy, report.observedAt, msg.sender
         );
@@ -207,7 +224,23 @@ contract RobinhoodSequencerReporterL1 is Ownable2Step, EIP712, ReentrancyGuard {
 
     function requeueLatestStatus() external onlyOwner nonReentrant returns (uint256 ticketId) {
         _requireTarget();
-        ticketId = _queueStatus();
+        RecordedStatus memory status = statusHistory[statusSequence];
+        if (status.exists) {
+            return _queueStatus(
+                status.observerSetVersion, statusSequence, status.healthy, status.observedAt
+            );
+        }
+        ticketId = _queueStatus(observerSetVersion, statusSequence, healthy, lastObservedAt);
+    }
+
+    function requeueStatus(
+        uint64 sequence
+    ) external onlyOwner nonReentrant returns (uint256 ticketId) {
+        _requireTarget();
+        RecordedStatus memory status = statusHistory[sequence];
+        if (!status.exists) revert StatusNotRecorded(sequence);
+        ticketId =
+            _queueStatus(status.observerSetVersion, sequence, status.healthy, status.observedAt);
     }
 
     function requeueConfiguration() external onlyOwner nonReentrant returns (uint256 ticketId) {
@@ -226,7 +259,10 @@ contract RobinhoodSequencerReporterL1 is Ownable2Step, EIP712, ReentrancyGuard {
     }
 
     function quoteStatusRetryable() external view returns (uint256) {
-        return _quote(_statusCalldata(), statusGasLimit);
+        return _quote(
+            _statusCalldata(observerSetVersion, statusSequence, healthy, lastObservedAt),
+            statusGasLimit
+        );
     }
 
     function quoteConfigurationRetryable() external view returns (uint256) {
@@ -351,11 +387,18 @@ contract RobinhoodSequencerReporterL1 is Ownable2Step, EIP712, ReentrancyGuard {
         emit L2RefundAddressUpdated(newRefundAddress);
     }
 
-    function _queueStatus() private returns (uint256) {
+    function _queueStatus(
+        uint64 reportObserverSetVersion,
+        uint64 sequence,
+        bool reportHealthy,
+        uint64 observedAt
+    ) private returns (uint256) {
         return _queue(
-            _statusCalldata(),
+            _statusCalldata(reportObserverSetVersion, sequence, reportHealthy, observedAt),
             statusGasLimit,
-            IRobinhoodSequencerAvailabilityFeed.applyStatus.selector
+            IRobinhoodSequencerAvailabilityFeed.applyStatus.selector,
+            reportObserverSetVersion,
+            sequence
         );
     }
 
@@ -363,21 +406,27 @@ contract RobinhoodSequencerReporterL1 is Ownable2Step, EIP712, ReentrancyGuard {
         return _queue(
             _configurationCalldata(),
             configurationGasLimit,
-            IRobinhoodSequencerAvailabilityFeed.applyConfiguration.selector
+            IRobinhoodSequencerAvailabilityFeed.applyConfiguration.selector,
+            observerSetVersion,
+            statusSequence
         );
     }
 
     function _queue(
         bytes memory data,
         uint256 gasLimit,
-        bytes4 selector
+        bytes4 selector,
+        uint64 messageObserverSetVersion,
+        uint64 messageStatusSequence
     ) private returns (uint256 ticketId) {
         uint256 submissionFee = inbox.calculateRetryableSubmissionFee(data.length, block.basefee);
         uint256 fee = submissionFee + gasLimit * gasPriceBid;
         uint256 balance = address(this).balance;
         if (balance < fee) revert InsufficientReporterBalance(balance, fee);
         ticketId = _createRetryableTicket(data, gasLimit, submissionFee, fee);
-        emit RetryableTicketCreated(ticketId, selector, observerSetVersion, statusSequence, fee);
+        emit RetryableTicketCreated(
+            ticketId, selector, messageObserverSetVersion, messageStatusSequence, fee
+        );
     }
 
     function _createRetryableTicket(
@@ -400,10 +449,15 @@ contract RobinhoodSequencerReporterL1 is Ownable2Step, EIP712, ReentrancyGuard {
                 * gasPriceBid;
     }
 
-    function _statusCalldata() private view returns (bytes memory) {
+    function _statusCalldata(
+        uint64 reportObserverSetVersion,
+        uint64 sequence,
+        bool reportHealthy,
+        uint64 observedAt
+    ) private pure returns (bytes memory) {
         return abi.encodeCall(
             IRobinhoodSequencerAvailabilityFeed.applyStatus,
-            (observerSetVersion, statusSequence, healthy, lastObservedAt)
+            (reportObserverSetVersion, sequence, reportHealthy, observedAt)
         );
     }
 

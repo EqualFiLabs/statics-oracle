@@ -49,7 +49,7 @@ grace starts only after a later effective recovery on L2.
 - accepts only fresh, transition-only, sequential quorum reports;
 - starts impaired and fails closed during observer rotation;
 - creates retryable tickets through the chain-specific delayed inbox;
-- can requeue the latest status or configuration through Safe-only functions;
+- retains accepted transitions and can requeue an exact missing status sequence or configuration through Safe-only functions;
 - has explicit retryable gas and refund configuration; and
 - disables ownership renunciation.
 
@@ -148,9 +148,10 @@ the status sequence, replaces the observer set, and queues the new configuration
 the threshold to preserve liveness. Prepare new operators first, rotate, confirm L2 redemption,
 then re-establish health through three successful samples and a new transition.
 
-If a retryable is not redeemed, the Safe can requeue the latest configuration or status after
-funding and gas parameters are checked. These methods are not public because arbitrary retries
-could drain the prefunded reporter.
+If a retryable is not redeemed, the Safe can requeue the exact missing status sequence or the
+latest configuration after funding and gas parameters are checked. Historical status retention
+allows sequence gaps to be filled in order. These methods are not public because arbitrary
+retries could drain the prefunded reporter.
 
 ## Known limits
 
