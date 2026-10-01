@@ -1,4 +1,5 @@
 export const feedAbi = [
+  { type: "function", name: "l1Reporter", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
   { type: "function", name: "observerSetVersion", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
   { type: "function", name: "lastObservedBlockNumber", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
   { type: "function", name: "healthyUntil", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
@@ -27,6 +28,8 @@ export const feedAbi = [
 ];
 
 export const reporterAbi = [
+  { type: "function", name: "childChainId", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "l2Feed", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
   { type: "function", name: "observerSetVersion", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
   { type: "function", name: "statusSequence", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
   { type: "function", name: "healthy", stateMutability: "view", inputs: [], outputs: [{ type: "bool" }] },

@@ -35,6 +35,8 @@ const account = privateKeyToAccount(parsePrivateKey("OBSERVER_PRIVATE_KEY"));
 const host = process.env.OBSERVER_HOST ?? "127.0.0.1";
 const port = Number(process.env.OBSERVER_PORT ?? "8787");
 const pollInterval = Number(process.env.POLL_INTERVAL_MS ?? String(POLL_INTERVAL_MS));
+if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new Error("OBSERVER_PORT is invalid");
+if (!Number.isFinite(pollInterval) || pollInterval <= 0) throw new Error("POLL_INTERVAL_MS must be positive");
 const tracker = new AvailabilityTracker();
 let lastSample;
 let lastSignedStatusSequence = -1n;
@@ -157,10 +159,16 @@ async function signStatus(rawReport) {
   return { observer: account.address, report: serializeBigInts(report), signature };
 }
 
-await Promise.all([
+const [, , configuredChildChainId, configuredFeed, configuredReporter] = await Promise.all([
   assertRpcChain(robinhoodRpcUrl, robinhoodChainId),
   assertRpcChain(ethereumRpcUrl, ethereumChainId),
+  l1Client.readContract({ address: reporterAddress, abi: reporterAbi, functionName: "childChainId" }),
+  l1Client.readContract({ address: reporterAddress, abi: reporterAbi, functionName: "l2Feed" }),
+  l2Client.readContract({ address: feedAddress, abi: feedAbi, functionName: "l1Reporter" }),
 ]);
+if (configuredChildChainId !== BigInt(robinhoodChainId)) throw new Error("reporter child chain mismatch");
+if (getAddress(configuredFeed) !== feedAddress) throw new Error("reporter L2 feed mismatch");
+if (getAddress(configuredReporter) !== reporterAddress) throw new Error("feed L1 reporter mismatch");
 await sampleAvailability();
 const timer = setInterval(sampleAvailability, pollInterval);
 timer.unref();

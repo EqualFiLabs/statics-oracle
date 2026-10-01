@@ -46,6 +46,9 @@ const pollInterval = Number(process.env.POLL_INTERVAL_MS ?? String(POLL_INTERVAL
 const runOnce = process.env.RUN_ONCE === "true";
 const relayerRole = process.env.RELAYER_ROLE ?? "primary";
 const backupDelay = Number(process.env.BACKUP_DELAY_MS ?? "45000");
+if (!["primary", "backup"].includes(relayerRole)) throw new Error("RELAYER_ROLE must be primary or backup");
+if (!Number.isFinite(pollInterval) || pollInterval <= 0) throw new Error("POLL_INTERVAL_MS must be positive");
+if (!Number.isFinite(backupDelay) || backupDelay < 0) throw new Error("BACKUP_DELAY_MS must not be negative");
 
 const robinhoodChain = defineChain({
   id: robinhoodChainId,
@@ -215,11 +218,17 @@ async function runRound() {
   if (healthy) await renewHeartbeat();
 }
 
-await Promise.all([
+const [, , , configuredChildChainId, configuredFeed, configuredReporter] = await Promise.all([
   assertRpcChain(robinhoodRpcUrl, robinhoodChainId),
   assertRpcChain(ethereumRpcUrl, ethereumChainId),
   readSequencerFeedHead(directFeedUrl),
+  l1Public.readContract({ address: reporterAddress, abi: reporterAbi, functionName: "childChainId" }),
+  l1Public.readContract({ address: reporterAddress, abi: reporterAbi, functionName: "l2Feed" }),
+  l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "l1Reporter" }),
 ]);
+if (configuredChildChainId !== BigInt(robinhoodChainId)) throw new Error("reporter child chain mismatch");
+if (getAddress(configuredFeed) !== feedAddress) throw new Error("reporter L2 feed mismatch");
+if (getAddress(configuredReporter) !== reporterAddress) throw new Error("feed L1 reporter mismatch");
 
 do {
   try {
