@@ -256,6 +256,13 @@ async function renewHeartbeat() {
     functionName: "submitHeartbeat",
     args,
   });
+  const [submissionL1Version, submissionL1StatusSequence] = await Promise.all([
+    l1Public.readContract({ address: reporterAddress, abi: reporterAbi, functionName: "observerSetVersion" }),
+    l1Public.readContract({ address: reporterAddress, abi: reporterAbi, functionName: "statusSequence" }),
+  ]);
+  if (submissionL1Version !== version || submissionL1StatusSequence !== statusSequence) {
+    throw new Error("L1 state changed before heartbeat submission");
+  }
   const hash = await l2Wallet.writeContract(request);
   await l2Public.waitForTransactionReceipt({ hash });
   process.stdout.write(`renewed L2 heartbeat through ${heartbeat.validUntil}: ${hash}\n`);

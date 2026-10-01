@@ -89,9 +89,9 @@ from observer consensus and gathers heartbeat signatures when ten minutes or les
 also renews immediately when the accepted heartbeat belongs to an earlier status sequence. It
 suppresses renewal while the L2 observer-set version or status sequence is behind L1. It recovers
 and sorts authorized signers, then rechecks the L1 and L2 versions and sequences after quorum
-collection and any backup delay. It simulates each contract call, submits one transaction, and
-waits for the receipt. A backup coordinator can use `RELAYER_ROLE=backup` and a delay so it acts
-only if the primary update is still absent.
+collection and any backup delay. After simulation, it checks L1 once more immediately before
+broadcast, submits one transaction, and waits for the receipt. A backup coordinator can use
+`RELAYER_ROLE=backup` and a delay so it acts only if the primary update is still absent.
 
 Install and test:
 
@@ -171,3 +171,6 @@ state, but health still requires a heartbeat signed for the same sequence.
 - The Ethereum Safe controls observer membership and retryable configuration.
 - Shared hosting, DNS, RPC, or custody can collapse nominally independent failure domains.
 - A frozen L2 cannot advance time or execute a local down-marking transaction.
+- L1 can change after the coordinator's final check and before L2 inclusion. This unavoidable
+  cross-chain race is bounded by the 15-minute lease and ends earlier when the status retryable is
+  redeemed.
