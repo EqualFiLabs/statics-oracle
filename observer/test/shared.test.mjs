@@ -104,28 +104,17 @@ test("rejects disagreement and overlong leases", () => {
   assert.throws(() => validateHeartbeat(staleStatus), /status sequence changed/);
 });
 
-test("unsubmitted newer proposals cannot block a still-valid canonical heartbeat", () => {
+test("only the onchain accepted block gates heartbeat signing progress", () => {
   const input = validHeartbeatInput();
   assert.doesNotThrow(() => validateHeartbeatSigningProgress({
     heartbeat: input.heartbeat,
     lastOnchainBlock: 90n,
-    lastSignedBlock: 99n,
-    lastSignedHash: `0x${"22".repeat(32)}`,
   }));
 
   assert.throws(() => validateHeartbeatSigningProgress({
     heartbeat: input.heartbeat,
     lastOnchainBlock: 98n,
-    lastSignedBlock: 99n,
-    lastSignedHash: `0x${"22".repeat(32)}`,
   }), /accepted block/);
-
-  assert.throws(() => validateHeartbeatSigningProgress({
-    heartbeat: input.heartbeat,
-    lastOnchainBlock: 90n,
-    lastSignedBlock: 98n,
-    lastSignedHash: `0x${"22".repeat(32)}`,
-  }), /conflicting block/);
 });
 
 test("rejects future-dated heads before local recovery", () => {

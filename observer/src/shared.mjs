@@ -127,17 +127,9 @@ export function validateHeartbeat({
 export function validateHeartbeatSigningProgress({
   heartbeat,
   lastOnchainBlock,
-  lastSignedBlock,
-  lastSignedHash,
 }) {
   if (heartbeat.observedBlockNumber <= lastOnchainBlock) {
     throw new Error("proposed block is not newer than the accepted block");
-  }
-  if (
-    heartbeat.observedBlockNumber === lastSignedBlock
-    && heartbeat.observedBlockHash !== lastSignedHash
-  ) {
-    throw new Error("refusing a conflicting block");
   }
 }
 

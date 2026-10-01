@@ -46,8 +46,6 @@ const tracker = new AvailabilityTracker();
 let lastSample;
 let lastSignedStatusSequence = -1n;
 let lastSignedStatusHealthy;
-let lastSignedBlock = -1n;
-let lastSignedHash;
 
 const robinhoodChain = defineChain({
   id: robinhoodChainId,
@@ -121,8 +119,6 @@ async function signHeartbeat(rawHeartbeat) {
   validateHeartbeatSigningProgress({
     heartbeat,
     lastOnchainBlock: lastBlock,
-    lastSignedBlock,
-    lastSignedHash,
   });
   const referenceBlock = await getBlock(robinhoodRpcUrl, heartbeat.observedBlockNumber);
   validateHeartbeat({
@@ -139,8 +135,6 @@ async function signHeartbeat(rawHeartbeat) {
     primaryType: "Heartbeat",
     message: heartbeat,
   });
-  lastSignedBlock = heartbeat.observedBlockNumber;
-  lastSignedHash = heartbeat.observedBlockHash;
   return { observer: account.address, heartbeat: serializeBigInts(heartbeat), signature };
 }
 
