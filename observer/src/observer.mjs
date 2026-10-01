@@ -191,7 +191,18 @@ createServer(async (request, response) => {
       return;
     }
     if (request.method === "GET" && request.url === "/health") {
-      respond(response, 200, { ok: true, observer: account.address, ...tracker.snapshot() });
+      respond(response, 200, {
+        ok: true,
+        observer: account.address,
+        configuration: {
+          ethereumChainId,
+          robinhoodChainId,
+          reporter: reporterAddress,
+          feed: feedAddress,
+          pollIntervalMs: pollInterval,
+        },
+        ...tracker.snapshot(),
+      });
       return;
     }
     if (request.method !== "POST") {

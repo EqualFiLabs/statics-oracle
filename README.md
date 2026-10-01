@@ -60,6 +60,8 @@ L1 status sequence. The feed reports healthy only when the latest L1 state is he
 lease for that exact status sequence is active. Production use still requires deployment,
 independent operators, key custody, monitoring, and an explicitly reviewed recovery grace period.
 See [Sequencer signal operations](docs/SEQUENCER_SIGNAL.md).
+Use [Sequencer signal deployment](docs/SEQUENCER_DEPLOYMENT.md) for the two-chain preflight,
+funding, initialization, service, smoke-test, monitoring, and evidence procedure.
 Asset-specific feed heartbeats and `maxAge` policies must likewise be sourced and reviewed
 before an asset is enabled; placeholder safety parameters are not acceptable.
 

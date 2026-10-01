@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "name": "robinhood-testnet",
+  "source": {
+    "repository": "https://github.com/EqualFiLabs/statics-oracle",
+    "commit": "0000000000000000000000000000000000000000"
+  },
+  "chains": {
+    "ethereum": {
+      "chainId": 11155111,
+      "deployer": "0x0000000000000000000000000000000000000000",
+      "minimumDeployerBalanceWei": "0",
+      "delayedInbox": "0xF2939afA86F6f933A3CE17fCAB007907B6b0B7a4",
+      "explorer": "https://sepolia.etherscan.io"
+    },
+    "robinhood": {
+      "chainId": 46630,
+      "deployer": "0x0000000000000000000000000000000000000000",
+      "minimumDeployerBalanceWei": "0",
+      "sequencerFeedUrl": "wss://feed.testnet.chain.robinhood.com",
+      "explorer": "https://explorer.testnet.chain.robinhood.com"
+    }
+  },
+  "contracts": {
+    "reporter": {
+      "address": null,
+      "deploymentTransaction": null,
+      "runtimeCodeHash": null
+    },
+    "feed": {
+      "address": null,
+      "deploymentTransaction": null,
+      "runtimeCodeHash": null
+    }
+  },
+  "configuration": {
+    "owner": "0x0000000000000000000000000000000000000000",
+    "refundAddress": "0x0000000000000000000000000000000000000000",
+    "observers": [
+      "0x0000000000000000000000000000000000000000",
+      "0x0000000000000000000000000000000000000000",
+      "0x0000000000000000000000000000000000000000"
+    ],
+    "threshold": 2,
+    "observerSetHash": null,
+    "statusGasLimit": "0",
+    "configurationGasLimit": "0",
+    "gasPriceBid": "0",
+    "reserveMessages": 4
+  },
+  "transactions": {
+    "funding": null,
+    "initialization": null
+  },
+  "services": {
+    "pollIntervalMs": 30000,
+    "backupDelayMs": 45000
+  }
+}
