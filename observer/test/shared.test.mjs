@@ -2,17 +2,22 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  AvailabilityTracker,
   LEASE_SECONDS,
-  normalizeObservation,
-  validateObservation,
+  ObserverState,
+  heartbeatDue,
+  normalizeHeartbeat,
+  normalizeStatusReport,
+  validateHeartbeat,
+  validateStatusReport,
 } from "../src/shared.mjs";
 
 const hash = `0x${"11".repeat(32)}`;
 const now = 1_000n;
 
-function validInput() {
+function validHeartbeatInput() {
   return {
-    observation: normalizeObservation({
+    heartbeat: normalizeHeartbeat({
       observerSetVersion: "4",
       observedBlockNumber: "98",
       observedBlockHash: hash,
@@ -21,56 +26,77 @@ function validInput() {
     expectedObserverSetVersion: 4n,
     directHead: { number: 100n, hash: `0x${"22".repeat(32)}`, timestamp: now - 1n },
     referenceHead: { number: 101n, hash: `0x${"33".repeat(32)}`, timestamp: now - 2n },
-    directReferenceBlock: {
-      number: 100n,
-      hash: `0x${"22".repeat(32)}`,
-      timestamp: now - 1n,
-    },
+    directReferenceBlock: { number: 100n, hash: `0x${"22".repeat(32)}`, timestamp: now - 1n },
     referenceBlock: { number: 98n, hash, timestamp: now - 3n },
     now,
   };
 }
 
-test("accepts fresh sequencer-feed progress consistent with the reference RPC", () => {
-  assert.doesNotThrow(() => validateObservation(validInput()));
+test("requires three consecutive samples for impairment and recovery", () => {
+  const tracker = new AvailabilityTracker();
+  tracker.record(true);
+  tracker.record(true);
+  assert.equal(tracker.state, ObserverState.UNKNOWN);
+  tracker.record(true);
+  assert.equal(tracker.state, ObserverState.HEALTHY);
+  tracker.record(false, 1, new Error("one"));
+  tracker.record(false, 2, new Error("two"));
+  assert.equal(tracker.state, ObserverState.HEALTHY);
+  tracker.record(false, 3, new Error("three"));
+  assert.equal(tracker.state, ObserverState.IMPAIRED);
+  tracker.record(true);
+  tracker.record(true);
+  assert.equal(tracker.state, ObserverState.IMPAIRED);
+  tracker.record(true);
+  assert.equal(tracker.state, ObserverState.HEALTHY);
 });
 
-test("rejects disagreement between the sequencer feed and reference RPC", () => {
-  const input = validInput();
-  input.directReferenceBlock.hash = `0x${"44".repeat(32)}`;
-  assert.throws(() => validateObservation(input), /disagree/);
+test("restart starts unknown", () => {
+  const tracker = new AvailabilityTracker();
+  assert.equal(tracker.snapshot().state, ObserverState.UNKNOWN);
 });
 
-test("rejects stale sequencer progress", () => {
-  const input = validInput();
-  input.directHead.timestamp = now - 61n;
-  assert.throws(() => validateObservation(input), /direct sequencer-feed head is stale/);
+test("accepts fresh direct and reference evidence with a 15 minute lease", () => {
+  assert.doesNotThrow(() => validateHeartbeat(validHeartbeatInput()));
 });
 
-test("rejects short and overlong leases", () => {
-  const short = validInput();
-  short.observation.validUntil = now + 74n;
-  assert.throws(() => validateObservation(short), /too short/);
+test("rejects disagreement and overlong leases", () => {
+  const disagreement = validHeartbeatInput();
+  disagreement.directReferenceBlock.hash = `0x${"44".repeat(32)}`;
+  assert.throws(() => validateHeartbeat(disagreement), /disagree/);
 
-  const long = validInput();
-  long.observation.validUntil = now + 96n;
-  assert.throws(() => validateObservation(long), /too long/);
+  const overlong = validHeartbeatInput();
+  overlong.heartbeat.validUntil += 1n;
+  assert.throws(() => validateHeartbeat(overlong), /too long/);
 });
 
-test("rejects a current-head proposal", () => {
-  const input = validInput();
-  input.observation.observedBlockNumber = 99n;
-  input.directHead.number = 99n;
-  input.directHead.hash = hash;
-  input.referenceHead.number = 99n;
-  input.directReferenceBlock.number = 99n;
-  input.directReferenceBlock.hash = hash;
-  input.referenceBlock.number = 99n;
-  assert.throws(() => validateObservation(input), /not behind the reference head/);
+test("status report must match confirmed local state and next L1 sequence", () => {
+  const report = normalizeStatusReport({
+    observerSetVersion: 2,
+    sequence: 8,
+    healthy: true,
+    observedAt: now,
+    validUntil: now + 300n,
+  });
+  assert.doesNotThrow(() => validateStatusReport({
+    report,
+    version: 2n,
+    sequence: 7n,
+    currentHealthy: false,
+    localState: ObserverState.HEALTHY,
+    now,
+  }));
+  assert.throws(() => validateStatusReport({
+    report,
+    version: 2n,
+    sequence: 7n,
+    currentHealthy: false,
+    localState: ObserverState.IMPAIRED,
+    now,
+  }), /disagrees/);
 });
 
-test("rejects a proposal ahead of the sequencer feed", () => {
-  const input = validInput();
-  input.observation.observedBlockNumber = 101n;
-  assert.throws(() => validateObservation(input), /ahead of the sequencer feed/);
+test("heartbeat renewal becomes due with ten minutes remaining", () => {
+  assert.equal(heartbeatDue(now + 601n, now), false);
+  assert.equal(heartbeatDue(now + 600n, now), true);
 });

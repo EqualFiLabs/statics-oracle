@@ -1,5 +1,3 @@
-import { ROBINHOOD_CHAIN_ID } from "./shared.mjs";
-
 let requestId = 0;
 
 export async function rpc(url, method, params = [], timeoutMs = 8_000) {
@@ -18,10 +16,10 @@ export async function rpc(url, method, params = [], timeoutMs = 8_000) {
   return payload.result;
 }
 
-export async function assertRobinhoodRpc(url) {
-  const chainId = BigInt(await rpc(url, "eth_chainId"));
-  if (chainId !== ROBINHOOD_CHAIN_ID) {
-    throw new Error(`wrong chain ID: expected ${ROBINHOOD_CHAIN_ID}, received ${chainId}`);
+export async function assertRpcChain(url, expectedChainId) {
+    const chainId = BigInt(await rpc(url, "eth_chainId"));
+  if (chainId !== BigInt(expectedChainId)) {
+    throw new Error(`wrong chain ID: expected ${expectedChainId}, received ${chainId}`);
   }
 }
 

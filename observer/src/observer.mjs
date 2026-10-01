@@ -2,31 +2,60 @@ import { createServer } from "node:http";
 import { createPublicClient, defineChain, getAddress, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
-import { eip712Domain, feedAbi, observationTypes } from "./abi.mjs";
-import { assertRobinhoodRpc, getBlock, readSequencerFeedHead, waitForBlock } from "./rpc.mjs";
 import {
-  normalizeObservation,
+  feedAbi,
+  heartbeatDomain,
+  heartbeatTypes,
+  reporterAbi,
+  statusReportDomain,
+  statusReportTypes,
+} from "./abi.mjs";
+import { assertRpcChain, getBlock, readSequencerFeedHead, waitForBlock } from "./rpc.mjs";
+import {
+  AvailabilityTracker,
+  ObserverState,
+  POLL_INTERVAL_MS,
+  normalizeHeartbeat,
+  normalizeStatusReport,
   parsePrivateKey,
   requireEnv,
-  serializeObservation,
-  validateObservation,
+  serializeBigInts,
+  validateHeartbeat,
+  validateStatusReport,
 } from "./shared.mjs";
 
 const feedAddress = getAddress(requireEnv("SEQUENCER_SIGNAL_FEED"));
+const reporterAddress = getAddress(requireEnv("SEQUENCER_L1_REPORTER"));
 const directFeedUrl = requireEnv("DIRECT_SEQUENCER_FEED_URL");
-const referenceUrl = requireEnv("REFERENCE_RPC_URL");
+const robinhoodRpcUrl = requireEnv("ROBINHOOD_RPC_URL");
+const ethereumRpcUrl = requireEnv("ETHEREUM_RPC_URL");
+const robinhoodChainId = Number(process.env.ROBINHOOD_CHAIN_ID ?? "4663");
+const ethereumChainId = Number(process.env.ETHEREUM_CHAIN_ID ?? "1");
 const account = privateKeyToAccount(parsePrivateKey("OBSERVER_PRIVATE_KEY"));
 const host = process.env.OBSERVER_HOST ?? "127.0.0.1";
 const port = Number(process.env.OBSERVER_PORT ?? "8787");
+const pollInterval = Number(process.env.POLL_INTERVAL_MS ?? String(POLL_INTERVAL_MS));
+const tracker = new AvailabilityTracker();
+let lastSample;
+let lastSignedStatusSequence = -1n;
+let lastSignedStatusHealthy;
 let lastSignedBlock = -1n;
 let lastSignedHash;
-const chain = defineChain({
-  id: 4663,
+
+const robinhoodChain = defineChain({
+  id: robinhoodChainId,
   name: "Robinhood Chain",
   nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-  rpcUrls: { default: { http: [referenceUrl] } },
+  rpcUrls: { default: { http: [robinhoodRpcUrl] } },
 });
-const publicClient = createPublicClient({ chain, transport: http() });
+const ethereumChain = defineChain({
+  id: ethereumChainId,
+  name: "Ethereum",
+  nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+  rpcUrls: { default: { http: [ethereumRpcUrl] } },
+});
+const l2Client = createPublicClient({ chain: robinhoodChain, transport: http() });
+const l1Client = createPublicClient({ chain: ethereumChain, transport: http() });
 
 async function readJson(request) {
   const chunks = [];
@@ -44,80 +73,118 @@ function respond(response, status, body) {
   response.end(JSON.stringify(body));
 }
 
-async function signProposal(rawObservation) {
-  const observation = normalizeObservation(rawObservation);
-  const [observerSetVersion, onchainLastBlock, authorized] = await Promise.all([
-    publicClient.readContract({
-      address: feedAddress,
-      abi: feedAbi,
-      functionName: "observerSetVersion",
-    }),
-    publicClient.readContract({
-      address: feedAddress,
-      abi: feedAbi,
-      functionName: "lastObservedBlockNumber",
-    }),
-    publicClient.readContract({
-      address: feedAddress,
-      abi: feedAbi,
-      functionName: "isObserver",
-      args: [account.address],
-    }),
-  ]);
-  if (!authorized) throw new Error("signing key is not in the onchain observer set");
-  if (observation.observedBlockNumber <= onchainLastBlock) {
-    throw new Error("proposed block is not newer than the onchain observation");
+async function sampleAvailability() {
+  try {
+    const directHead = await readSequencerFeedHead(directFeedUrl);
+    const directReferenceBlock = await waitForBlock(robinhoodRpcUrl, directHead.number);
+    const referenceHead = await getBlock(robinhoodRpcUrl);
+    const now = BigInt(Math.floor(Date.now() / 1_000));
+    if (referenceHead.number < directHead.number) throw new Error("reference RPC lags direct feed");
+    if (directReferenceBlock.hash !== directHead.hash) throw new Error("direct feed and RPC disagree");
+    if (now - directHead.timestamp > 60n || now - referenceHead.timestamp > 60n) {
+      throw new Error("observed head is stale");
+    }
+    lastSample = { directHead, directReferenceBlock, referenceHead };
+    tracker.record(true);
+  } catch (error) {
+    tracker.record(false, Date.now(), error);
   }
-  if (observation.observedBlockNumber < lastSignedBlock) {
-    throw new Error("proposed block is older than the last signed block");
-  }
-  if (
-    observation.observedBlockNumber === lastSignedBlock &&
-    lastSignedHash !== observation.observedBlockHash
-  ) {
-    throw new Error("refusing a conflicting block at the last signed height");
-  }
+}
 
-  const [directHead, referenceBlock] = await Promise.all([
-    readSequencerFeedHead(directFeedUrl),
-    getBlock(referenceUrl, observation.observedBlockNumber),
+async function signHeartbeat(rawHeartbeat) {
+  if (tracker.state !== ObserverState.HEALTHY || !lastSample) throw new Error("observer is not healthy");
+  const heartbeat = normalizeHeartbeat(rawHeartbeat);
+  const [version, lastBlock, authorized] = await Promise.all([
+    l2Client.readContract({ address: feedAddress, abi: feedAbi, functionName: "observerSetVersion" }),
+    l2Client.readContract({ address: feedAddress, abi: feedAbi, functionName: "lastObservedBlockNumber" }),
+    l2Client.readContract({ address: feedAddress, abi: feedAbi, functionName: "isObserver", args: [account.address] }),
   ]);
-  const directReferenceBlock = await waitForBlock(referenceUrl, directHead.number);
-  const referenceHead = await getBlock(referenceUrl);
-  validateObservation({
-    observation,
-    expectedObserverSetVersion: observerSetVersion,
-    directHead,
-    referenceHead,
-    directReferenceBlock,
+  if (!authorized) throw new Error("signing key is not in the L2 observer set");
+  if (heartbeat.observedBlockNumber <= lastBlock || heartbeat.observedBlockNumber < lastSignedBlock) {
+    throw new Error("proposed block is not newer");
+  }
+  if (heartbeat.observedBlockNumber === lastSignedBlock && heartbeat.observedBlockHash !== lastSignedHash) {
+    throw new Error("refusing a conflicting block");
+  }
+  const referenceBlock = await getBlock(robinhoodRpcUrl, heartbeat.observedBlockNumber);
+  validateHeartbeat({
+    heartbeat,
+    expectedObserverSetVersion: version,
+    ...lastSample,
     referenceBlock,
     now: BigInt(Math.floor(Date.now() / 1_000)),
   });
-
   const signature = await account.signTypedData({
-    domain: eip712Domain(feedAddress),
-    types: observationTypes,
-    primaryType: "Observation",
-    message: observation,
+    domain: heartbeatDomain(feedAddress, robinhoodChainId),
+    types: heartbeatTypes,
+    primaryType: "Heartbeat",
+    message: heartbeat,
   });
-  lastSignedBlock = observation.observedBlockNumber;
-  lastSignedHash = observation.observedBlockHash;
-  return { observer: account.address, observation: serializeObservation(observation), signature };
+  lastSignedBlock = heartbeat.observedBlockNumber;
+  lastSignedHash = heartbeat.observedBlockHash;
+  return { observer: account.address, heartbeat: serializeBigInts(heartbeat), signature };
 }
 
-await Promise.all([assertRobinhoodRpc(referenceUrl), readSequencerFeedHead(directFeedUrl)]);
+async function signStatus(rawReport) {
+  const report = normalizeStatusReport(rawReport);
+  const [version, sequence, currentHealthy, authorized] = await Promise.all([
+    l1Client.readContract({ address: reporterAddress, abi: reporterAbi, functionName: "observerSetVersion" }),
+    l1Client.readContract({ address: reporterAddress, abi: reporterAbi, functionName: "statusSequence" }),
+    l1Client.readContract({ address: reporterAddress, abi: reporterAbi, functionName: "healthy" }),
+    l1Client.readContract({ address: reporterAddress, abi: reporterAbi, functionName: "isObserver", args: [account.address] }),
+  ]);
+  if (!authorized) throw new Error("signing key is not in the L1 observer set");
+  validateStatusReport({
+    report,
+    version,
+    sequence,
+    currentHealthy,
+    localState: tracker.state,
+    now: BigInt(Math.floor(Date.now() / 1_000)),
+  });
+  if (report.sequence < lastSignedStatusSequence) throw new Error("status sequence regressed");
+  if (report.sequence === lastSignedStatusSequence && report.healthy !== lastSignedStatusHealthy) {
+    throw new Error("refusing a conflicting status report");
+  }
+  const signature = await account.signTypedData({
+    domain: statusReportDomain(reporterAddress, ethereumChainId),
+    types: statusReportTypes,
+    primaryType: "StatusReport",
+    message: report,
+  });
+  lastSignedStatusSequence = report.sequence;
+  lastSignedStatusHealthy = report.healthy;
+  return { observer: account.address, report: serializeBigInts(report), signature };
+}
+
+await Promise.all([
+  assertRpcChain(robinhoodRpcUrl, robinhoodChainId),
+  assertRpcChain(ethereumRpcUrl, ethereumChainId),
+]);
+await sampleAvailability();
+const timer = setInterval(sampleAvailability, pollInterval);
+timer.unref();
 
 createServer(async (request, response) => {
   try {
     if (request.method === "GET" && request.url === "/health") {
-      respond(response, 200, { ok: true, observer: account.address });
+      respond(response, 200, { ok: true, observer: account.address, ...tracker.snapshot() });
       return;
     }
-    if (request.method !== "POST" || request.url !== "/observe") {
+    if (request.method !== "POST") {
       respond(response, 404, { error: "not found" });
       return;
     }
-    respond(response, 200, await signProposal((await readJson(request)).observation));
+    const body = await readJson(request);
+    if (request.url === "/heartbeat") {
+      respond(response, 200, await signHeartbeat(body.heartbeat));
+      return;
+    }
+    if (request.url === "/status") {
+      respond(response, 200, await signStatus(body.report));
+      return;
+    }
+    respond(response, 404, { error: "not found" });
   } catch (error) {
     respond(response, 400, { error: error instanceof Error ? error.message : "request failed" });
   }
