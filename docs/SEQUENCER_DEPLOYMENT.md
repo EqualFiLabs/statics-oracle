@@ -37,7 +37,9 @@ broadcast, replace the placeholders for:
 Leave contract addresses, transaction hashes, and code hashes `null` until those values exist.
 The manifest contains public evidence only. Never add private keys, RPC URLs, or authentication
 tokens. The checked-in example deliberately contains zero placeholders and cannot pass preflight
-until it is copied and fully configured.
+until it is copied and fully configured. Keep the deployment-specific copy untracked while
+preflight and broadcast run from the exact source commit. Commit the completed public artifact in
+a later evidence-only change after deployment.
 
 Set the RPC URLs and manifest path through secret management, then run the read-only preflight:
 
@@ -96,15 +98,17 @@ preflight. With both addresses present it additionally verifies:
 - the L2 feed's immutable L1 reporter binding; and
 - that the reporter has not already been initialized.
 
-It prints both runtime code hashes and the exact current funding shortfall. Copy the code hashes
-into the manifest and rerun the preflight before initialization.
+It prints both runtime code hashes and the funding shortfall at the current retryable quotes. Copy
+the code hashes into the manifest, add reviewed funding headroom for fee movement, and rerun the
+preflight before initialization.
 
 ## Fund and initialize
 
 `InitializeRobinhoodSequencerSignal.s.sol` funds the reporter and calls its one-time
-`initializeL2Feed`. It fails unless the resulting pre-initialization balance covers the initial
-configuration retryable plus at least four times the larger current status or configuration
-quote.
+`initializeL2Feed`. Its simulation fails unless the resulting pre-initialization balance covers
+the initial configuration retryable plus at least four times the larger current status or
+configuration quote. Funding and initialization may be separate broadcast transactions, so the
+post-deployment smoke test rechecks the reserve against then-current quotes.
 
 Configure:
 
@@ -112,7 +116,7 @@ Configure:
 SEQUENCER_L1_REPORTER
 SEQUENCER_SIGNAL_FEED
 ROBINHOOD_CHAIN_ID=46630
-SEQUENCER_REPORTER_FUNDING_WEI=<preflight fundingShortfall>
+SEQUENCER_REPORTER_FUNDING_WEI=<preflight fundingShortfall plus reviewed headroom>
 SEQUENCER_RETRYABLE_RESERVE_MESSAGES=4
 ```
 
@@ -175,9 +179,13 @@ cd observer
 npm run deployment:smoke
 ```
 
+Run the monitor on a coordinator host that already holds the ordered observer token set. Do not
+copy quorum-wide observer credentials onto an additional monitoring host merely to run this check.
+
 The smoke test fails unless it verifies:
 
-- successful contract deployment and initialization transactions;
+- successful contract deployment and initialization transactions, including expected deployment
+  senders;
 - exact runtime code hashes;
 - exact L1 and L2 contract bindings and configuration;
 - synchronized observer-set versions and status sequences;

@@ -13,7 +13,11 @@ import {
 
 import { reporterAbi, feedAbi } from "./abi.mjs";
 import { parseObserverAuthTokens } from "./auth.mjs";
-import { validateDeploymentManifest, validateHealthySnapshot } from "./deployment.mjs";
+import {
+  sanitizeOperationalError,
+  validateDeploymentManifest,
+  validateHealthySnapshot,
+} from "./deployment.mjs";
 import { getBlock, readSequencerFeedHead, waitForBlock } from "./rpc.mjs";
 import { requireEnv, serializeBigInts, validateObservedHeads } from "./shared.mjs";
 
@@ -23,7 +27,7 @@ function reportFailure(error) {
   process.stderr.write(`${JSON.stringify({
     mode: mode ?? "unknown",
     ok: false,
-    error: error instanceof Error ? error.message : "deployment check failed",
+    error: sanitizeOperationalError(error),
   })}\n`);
 }
 
@@ -229,11 +233,26 @@ async function preflightContracts() {
   };
 }
 
-async function assertSuccessfulTransaction(client, hash, expectedContract, field) {
-  const receipt = await client.getTransactionReceipt({ hash });
+async function assertSuccessfulTransaction(
+  client,
+  hash,
+  expectedContract,
+  field,
+  expectedSender = null,
+) {
+  const [receipt, transaction] = await Promise.all([
+    client.getTransactionReceipt({ hash }),
+    client.getTransaction({ hash }),
+  ]);
   if (receipt.status !== "success") throw new Error(`${field} transaction reverted`);
-  if (expectedContract && getAddress(receipt.contractAddress) !== expectedContract) {
+  if (
+    expectedContract
+    && (!receipt.contractAddress || getAddress(receipt.contractAddress) !== expectedContract)
+  ) {
     throw new Error(`${field} deployed an unexpected contract address`);
+  }
+  if (expectedSender && getAddress(transaction.from) !== expectedSender) {
+    throw new Error(`${field} sender does not match the manifest deployer`);
   }
   return receipt.blockNumber;
 }
@@ -373,8 +392,20 @@ async function smoke() {
       assertNetworkAndFeed(),
       l1.getBytecode({ address: reporter.address }),
       l2.getBytecode({ address: feed.address }),
-      assertSuccessfulTransaction(l1, reporter.deploymentTransaction, reporter.address, "reporter deployment"),
-      assertSuccessfulTransaction(l2, feed.deploymentTransaction, feed.address, "feed deployment"),
+      assertSuccessfulTransaction(
+        l1,
+        reporter.deploymentTransaction,
+        reporter.address,
+        "reporter deployment",
+        manifest.chains.ethereum.deployer,
+      ),
+      assertSuccessfulTransaction(
+        l2,
+        feed.deploymentTransaction,
+        feed.address,
+        "feed deployment",
+        manifest.chains.robinhood.deployer,
+      ),
       assertSuccessfulTransaction(l1, manifest.transactions.initialization, null, "initialization"),
       observerHealth(),
     ]);

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   observerSetHash,
+  sanitizeOperationalError,
   validateDeploymentManifest,
   validateHealthySnapshot,
 } from "../src/deployment.mjs";
@@ -96,6 +97,18 @@ test("rejects unsafe observer, network, and reserve configuration", () => {
   const numericGasLimit = manifest();
   numericGasLimit.configuration.statusGasLimit = 200000;
   assert.throws(() => validateDeploymentManifest(numericGasLimit), /integer string/);
+
+  const secretField = manifest();
+  secretField.chains.ethereum.rpcUrl = "https://user:secret@example.invalid";
+  assert.throws(() => validateDeploymentManifest(secretField), /unsupported field/);
+});
+
+test("redacts provider URLs and private-key-shaped values from operational errors", () => {
+  const key = `0x${"ab".repeat(32)}`;
+  const sanitized = sanitizeOperationalError(
+    new Error(`request failed at https://provider.invalid/v2/private-token with ${key}`),
+  );
+  assert.equal(sanitized, "request failed at <redacted-url> with <redacted-hex>");
 });
 
 test("healthy snapshot binds both chains and preserves retryable reserve", () => {

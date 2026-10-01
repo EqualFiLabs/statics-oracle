@@ -3,14 +3,19 @@ import { encodeAbiParameters, getAddress, keccak256, zeroAddress } from "viem";
 export const DEPLOYMENT_PAIRS = Object.freeze({
   "1:4663": Object.freeze({
     delayedInbox: getAddress("0x1A07cc4BD17E0118BdB54D70990D2158AbAD7a2D"),
+    ethereumExplorer: "https://etherscan.io",
+    robinhoodExplorer: "https://robinhoodchain.blockscout.com",
     sequencerFeedUrl: "wss://feed.mainnet.chain.robinhood.com",
   }),
   "11155111:46630": Object.freeze({
     delayedInbox: getAddress("0xF2939afA86F6f933A3CE17fCAB007907B6b0B7a4"),
+    ethereumExplorer: "https://sepolia.etherscan.io",
+    robinhoodExplorer: "https://explorer.testnet.chain.robinhood.com",
     sequencerFeedUrl: "wss://feed.testnet.chain.robinhood.com",
   }),
 });
 const MAX_UINT256 = (1n << 256n) - 1n;
+const SOURCE_REPOSITORY = "https://github.com/EqualFiLabs/statics-oracle";
 
 function fail(field, message) {
   throw new Error(`${field} ${message}`);
@@ -19,6 +24,31 @@ function fail(field, message) {
 function object(value, field) {
   if (!value || typeof value !== "object" || Array.isArray(value)) fail(field, "must be an object");
   return value;
+}
+
+function exactKeys(value, allowed, field) {
+  for (const key of Object.keys(value)) {
+    if (!allowed.includes(key)) fail(field, "contains an unsupported field");
+  }
+}
+
+function publicHttpsUrl(value, field) {
+  try {
+    const parsed = new URL(value);
+    if (
+      parsed.protocol !== "https:"
+      || parsed.username
+      || parsed.password
+      || parsed.search
+      || parsed.hash
+    ) {
+      fail(field, "must be a public HTTPS URL without credentials");
+    }
+    return value;
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith(field)) throw error;
+    fail(field, "must be a public HTTPS URL without credentials");
+  }
 }
 
 function integer(value, field) {
@@ -83,12 +113,38 @@ export function observerSetHash(observers, threshold) {
 
 export function validateDeploymentManifest(raw, { requireDeployment = false } = {}) {
   const root = object(raw, "manifest");
+  exactKeys(
+    root,
+    [
+      "schemaVersion",
+      "name",
+      "source",
+      "chains",
+      "contracts",
+      "configuration",
+      "transactions",
+      "services",
+    ],
+    "manifest",
+  );
   if (root.schemaVersion !== 1) fail("schemaVersion", "must equal 1");
   if (typeof root.name !== "string" || root.name.length === 0) fail("name", "is required");
   const source = object(root.source, "source");
   const chains = object(root.chains, "chains");
   const ethereum = object(chains.ethereum, "chains.ethereum");
   const robinhood = object(chains.robinhood, "chains.robinhood");
+  exactKeys(source, ["repository", "commit"], "source");
+  exactKeys(chains, ["ethereum", "robinhood"], "chains");
+  exactKeys(
+    ethereum,
+    ["chainId", "deployer", "minimumDeployerBalanceWei", "delayedInbox", "explorer"],
+    "chains.ethereum",
+  );
+  exactKeys(
+    robinhood,
+    ["chainId", "deployer", "minimumDeployerBalanceWei", "sequencerFeedUrl", "explorer"],
+    "chains.robinhood",
+  );
   const ethereumChainId = integer(ethereum.chainId, "chains.ethereum.chainId");
   const robinhoodChainId = integer(robinhood.chainId, "chains.robinhood.chainId");
   const pair = DEPLOYMENT_PAIRS[`${ethereumChainId}:${robinhoodChainId}`];
@@ -96,11 +152,32 @@ export function validateDeploymentManifest(raw, { requireDeployment = false } = 
 
   const configuredInbox = address(ethereum.delayedInbox, "chains.ethereum.delayedInbox");
   if (configuredInbox !== pair.delayedInbox) fail("chains.ethereum.delayedInbox", "does not match the supported pair");
+  if (ethereum.explorer !== pair.ethereumExplorer) {
+    fail("chains.ethereum.explorer", "does not match the supported pair");
+  }
+  if (robinhood.explorer !== pair.robinhoodExplorer) {
+    fail("chains.robinhood.explorer", "does not match the supported pair");
+  }
   if (robinhood.sequencerFeedUrl !== pair.sequencerFeedUrl) {
     fail("chains.robinhood.sequencerFeedUrl", "does not match the supported pair");
   }
 
   const configuration = object(root.configuration, "configuration");
+  exactKeys(
+    configuration,
+    [
+      "owner",
+      "refundAddress",
+      "observers",
+      "threshold",
+      "observerSetHash",
+      "statusGasLimit",
+      "configurationGasLimit",
+      "gasPriceBid",
+      "reserveMessages",
+    ],
+    "configuration",
+  );
   if (!Array.isArray(configuration.observers)) fail("configuration.observers", "must be an array");
   const observers = configuration.observers.map((value, index) =>
     address(value, `configuration.observers[${index}]`)
@@ -130,8 +207,16 @@ export function validateDeploymentManifest(raw, { requireDeployment = false } = 
   const contracts = object(root.contracts, "contracts");
   const reporter = object(contracts.reporter, "contracts.reporter");
   const feed = object(contracts.feed, "contracts.feed");
+  exactKeys(contracts, ["reporter", "feed"], "contracts");
+  exactKeys(
+    reporter,
+    ["address", "deploymentTransaction", "runtimeCodeHash"],
+    "contracts.reporter",
+  );
+  exactKeys(feed, ["address", "deploymentTransaction", "runtimeCodeHash"], "contracts.feed");
   const nullable = !requireDeployment;
   const services = object(root.services, "services");
+  exactKeys(services, ["pollIntervalMs", "backupDelayMs"], "services");
   const pollIntervalMs = integer(services.pollIntervalMs, "services.pollIntervalMs");
   const backupDelayMs = integer(services.backupDelayMs, "services.backupDelayMs");
   if (pollIntervalMs !== 30_000) {
@@ -142,11 +227,15 @@ export function validateDeploymentManifest(raw, { requireDeployment = false } = 
   }
 
   const transactions = object(root.transactions, "transactions");
+  exactKeys(transactions, ["funding", "initialization"], "transactions");
+  if (source.repository !== SOURCE_REPOSITORY) {
+    fail("source.repository", "must identify the canonical repository");
+  }
   const normalized = {
     schemaVersion: 1,
     name: root.name,
     source: {
-      repository: String(source.repository ?? ""),
+      repository: publicHttpsUrl(source.repository, "source.repository"),
       commit: commit(source.commit),
     },
     chains: {
@@ -158,7 +247,7 @@ export function validateDeploymentManifest(raw, { requireDeployment = false } = 
           "chains.ethereum.minimumDeployerBalanceWei",
         ),
         delayedInbox: configuredInbox,
-        explorer: String(ethereum.explorer ?? ""),
+        explorer: publicHttpsUrl(ethereum.explorer, "chains.ethereum.explorer"),
       },
       robinhood: {
         chainId: robinhoodChainId,
@@ -168,7 +257,7 @@ export function validateDeploymentManifest(raw, { requireDeployment = false } = 
           "chains.robinhood.minimumDeployerBalanceWei",
         ),
         sequencerFeedUrl: robinhood.sequencerFeedUrl,
-        explorer: String(robinhood.explorer ?? ""),
+        explorer: publicHttpsUrl(robinhood.explorer, "chains.robinhood.explorer"),
       },
     },
     contracts: {
@@ -224,13 +313,18 @@ export function validateDeploymentManifest(raw, { requireDeployment = false } = 
     },
     services: { pollIntervalMs, backupDelayMs },
   };
-  if (!normalized.source.repository.startsWith("https://")) {
-    fail("source.repository", "must be an HTTPS URL");
-  }
   if (normalized.configuration.reserveMessages < 4) {
     fail("configuration.reserveMessages", "must be at least 4");
   }
   return normalized;
+}
+
+export function sanitizeOperationalError(error) {
+  const message = error instanceof Error ? error.message : "deployment check failed";
+  return message
+    .replace(/\b(?:https?|wss):\/\/[^\s"']+/gi, "<redacted-url>")
+    .replace(/0x[0-9a-fA-F]{64}/g, "<redacted-hex>")
+    .slice(0, 500);
 }
 
 export function validateHealthySnapshot(

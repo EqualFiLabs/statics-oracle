@@ -1095,8 +1095,10 @@ After the two contracts exist, the same preflight additionally verifies their ru
 constructor state before the reporter can be initialized.
 
 Initialization funding covers the configuration retryable plus a reserve of at least four times
-the larger current status or configuration quote. The one-time initializer rejects a wrong child
-chain, an already initialized reporter, or insufficient post-funding reserve.
+the larger current status or configuration quote, with reviewed headroom for fee movement. The
+one-time initializer rejects a wrong child chain, an already initialized reporter, or an
+insufficient reserve at simulation. The post-deployment smoke check re-evaluates the reserve using
+then-current quotes.
 
 The post-deployment smoke check requires successful deployment and initialization receipts, exact
 runtime code hashes, matching L1 and L2 versions and sequences, healthy manifest observers, a
