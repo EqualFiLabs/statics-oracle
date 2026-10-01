@@ -67,6 +67,7 @@ export function normalizeHeartbeat(value) {
   if (!value || typeof value !== "object") throw new Error("heartbeat is required");
   return {
     observerSetVersion: parseQuantity(value.observerSetVersion, "observerSetVersion"),
+    statusSequence: parseQuantity(value.statusSequence, "statusSequence"),
     observedBlockNumber: parseQuantity(value.observedBlockNumber, "observedBlockNumber"),
     observedBlockHash: normalizeHash(value.observedBlockHash, "observedBlockHash"),
     validUntil: parseQuantity(value.validUntil, "validUntil"),
@@ -94,6 +95,7 @@ export function serializeBigInts(value) {
 export function validateHeartbeat({
   heartbeat,
   expectedObserverSetVersion,
+  expectedStatusSequence,
   directHead,
   referenceHead,
   directReferenceBlock,
@@ -101,6 +103,7 @@ export function validateHeartbeat({
   now,
 }) {
   if (heartbeat.observerSetVersion !== expectedObserverSetVersion) throw new Error("observer set version changed");
+  if (heartbeat.statusSequence !== expectedStatusSequence) throw new Error("status sequence changed");
   if (heartbeat.observerSetVersion === 0n) throw new Error("observer set is not initialized");
   if (heartbeat.observedBlockNumber > directHead.number) throw new Error("proposed block is ahead of the sequencer feed");
   if (heartbeat.observedBlockNumber >= referenceHead.number) throw new Error("proposed block is not behind the reference head");

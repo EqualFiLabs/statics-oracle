@@ -57,7 +57,8 @@ grace starts only after a later effective recovery on L2.
 
 - has no owner or independent administration;
 - accepts configuration and status only from the aliased L1 reporter;
-- ignores duplicate or stale cross-chain messages and accepts only monotonic status progress;
+- ignores duplicate or stale cross-chain messages and accepts monotonic configuration and status catch-up;
+- binds every heartbeat signature and accepted lease to the current status sequence, so no heartbeat collected before a status change can restore health;
 - invalidates the heartbeat when a healthy catch-up skips unseen transitions, forcing a fresh recovery boundary;
 - verifies sorted heartbeat signatures and recent canonical block hashes;
 - expires heartbeats after at most 15 minutes; and
@@ -79,7 +80,8 @@ The observer exposes:
 - `POST /heartbeat` for an L2 heartbeat proposal.
 
 It refuses to sign while unknown, rejects proposals that disagree with local state, and checks
-the current onchain version and sequence immediately before signing.
+the current onchain observer-set version and status sequence immediately before signing. Every
+heartbeat includes both values in its EIP-712 payload.
 
 The coordinator polls every 30 seconds. It gathers status signatures when the L1 state differs
 from observer consensus and gathers heartbeat signatures when ten minutes or less remain. It
@@ -149,10 +151,14 @@ the status sequence, replaces the observer set, and queues the new configuration
 the threshold to preserve liveness. Prepare new operators first, rotate, confirm L2 redemption,
 then re-establish health through three successful samples and a new transition.
 
-If a retryable is not redeemed, a later authenticated status can safely advance across the
-missing sequence, or the Safe can requeue the latest status or configuration after funding and
-gas parameters are checked. Older deliveries become no-ops. The requeue methods are not public
-because arbitrary retries could drain the prefunded reporter.
+If a retryable is not redeemed, a later authenticated status or configuration can safely advance
+across the missing sequence or version, or the Safe can requeue the latest state after funding and
+gas parameters are checked. Configuration catch-up remains fail-closed, and status catch-up cannot
+reuse a heartbeat signed for an earlier status sequence. Older deliveries become no-ops. The
+requeue methods are not public because arbitrary retries could drain the prefunded reporter.
+If a requeued configuration anchors the L2 feed at a status sequence that is already healthy on
+L1, requeue the latest status as well; that exact authenticated status can restore the anchored L1
+state, but health still requires a heartbeat signed for the same sequence.
 
 ## Known limits
 

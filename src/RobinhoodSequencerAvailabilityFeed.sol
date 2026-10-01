@@ -28,11 +28,12 @@ contract RobinhoodSequencerAvailabilityFeed is IAggregatorV3, EIP712 {
     uint16 public constant MAX_BLOCK_LAG = 240;
 
     bytes32 public constant HEARTBEAT_TYPEHASH = keccak256(
-        "Heartbeat(uint64 observerSetVersion,uint64 observedBlockNumber,bytes32 observedBlockHash,uint64 validUntil)"
+        "Heartbeat(uint64 observerSetVersion,uint64 statusSequence,uint64 observedBlockNumber,bytes32 observedBlockHash,uint64 validUntil)"
     );
 
     struct Heartbeat {
         uint64 observerSetVersion;
+        uint64 statusSequence;
         uint64 observedBlockNumber;
         bytes32 observedBlockHash;
         uint64 validUntil;
@@ -50,6 +51,7 @@ contract RobinhoodSequencerAvailabilityFeed is IAggregatorV3, EIP712 {
     uint64 public l1ReceivedAt;
     uint64 public lastObservedBlockNumber;
     bytes32 public lastObservedBlockHash;
+    uint64 public lastHeartbeatStatusSequence;
     uint64 public healthyUntil;
     uint64 public recoveredAt;
     uint64 public lastUpdatedAt;
@@ -63,12 +65,13 @@ contract RobinhoodSequencerAvailabilityFeed is IAggregatorV3, EIP712 {
     error WrongChain(uint256 actual);
     error ZeroReporter();
     error NotAliasedL1Reporter(address caller, address expected);
-    error ConfigurationVersionGap(uint64 expected, uint64 supplied);
+    error ConfigurationStatusSequenceRegression(uint64 current, uint64 supplied);
     error StatusConfigurationNotApplied(uint64 expected, uint64 supplied);
     error InvalidObserverCount(uint256 count);
     error InvalidThreshold(uint256 supplied, uint256 observerCount);
     error ObserversNotStrictlyIncreasing(address previous, address current);
     error ObserverSetVersionMismatch(uint64 expected, uint64 supplied);
+    error HeartbeatStatusSequenceMismatch(uint64 expected, uint64 supplied);
     error ObservedBlockNotNewer(uint64 previous, uint64 supplied);
     error ObservedBlockNotFinalized(uint64 observedBlockNumber, uint256 currentBlockNumber);
     error ObservedBlockTooOld(uint64 observedBlockNumber, uint256 currentBlockNumber);
@@ -96,6 +99,7 @@ contract RobinhoodSequencerAvailabilityFeed is IAggregatorV3, EIP712 {
         uint64 receivedAt
     );
     event HealthyLeaseRenewed(
+        uint64 indexed statusSequence,
         uint64 indexed observedBlockNumber,
         bytes32 observedBlockHash,
         uint64 validUntil,
@@ -136,9 +140,8 @@ contract RobinhoodSequencerAvailabilityFeed is IAggregatorV3, EIP712 {
         uint64 observedAt
     ) external onlyAliasedL1Reporter {
         if (newObserverSetVersion <= observerSetVersion) return;
-        uint64 expectedVersion = observerSetVersion + 1;
-        if (newObserverSetVersion != expectedVersion) {
-            revert ConfigurationVersionGap(expectedVersion, newObserverSetVersion);
+        if (newStatusSequence < statusSequence) {
+            revert ConfigurationStatusSequenceRegression(statusSequence, newStatusSequence);
         }
         _materializeExpiry();
         _validateObserverSet(newObservers, newThreshold);
@@ -177,7 +180,10 @@ contract RobinhoodSequencerAvailabilityFeed is IAggregatorV3, EIP712 {
         if (reportObserverSetVersion > observerSetVersion) {
             revert StatusConfigurationNotApplied(observerSetVersion, reportObserverSetVersion);
         }
-        if (newStatusSequence <= statusSequence) return;
+        bool restoresAnchoredHealthyStatus =
+            newStatusSequence == statusSequence && !l1Healthy && newHealthy;
+        if (newStatusSequence < statusSequence) return;
+        if (newStatusSequence == statusSequence && !restoresAnchoredHealthyStatus) return;
         _materializeExpiry();
         bool skippedTransition = newStatusSequence > statusSequence + 1;
         statusSequence = newStatusSequence;
@@ -204,10 +210,15 @@ contract RobinhoodSequencerAvailabilityFeed is IAggregatorV3, EIP712 {
         _materializeExpiry();
         lastObservedBlockNumber = heartbeat.observedBlockNumber;
         lastObservedBlockHash = heartbeat.observedBlockHash;
+        lastHeartbeatStatusSequence = heartbeat.statusSequence;
         healthyUntil = heartbeat.validUntil;
         _recordAfterMutation();
         emit HealthyLeaseRenewed(
-            heartbeat.observedBlockNumber, heartbeat.observedBlockHash, heartbeat.validUntil, isUp()
+            heartbeat.statusSequence,
+            heartbeat.observedBlockNumber,
+            heartbeat.observedBlockHash,
+            heartbeat.validUntil,
+            isUp()
         );
     }
 
@@ -220,13 +231,16 @@ contract RobinhoodSequencerAvailabilityFeed is IAggregatorV3, EIP712 {
     }
 
     function isUp() public view returns (bool) {
-        return observerSetVersion != 0 && l1Healthy && block.timestamp < healthyUntil;
+        return observerSetVersion != 0 && l1Healthy && lastHeartbeatStatusSequence == statusSequence
+            && block.timestamp < healthyUntil;
     }
 
     function availabilityReason() public view returns (AvailabilityReason) {
         if (observerSetVersion == 0) return AvailabilityReason.UNINITIALIZED;
         if (!l1Healthy) return AvailabilityReason.L1_REPORTED_IMPAIRED;
-        if (block.timestamp >= healthyUntil) return AvailabilityReason.LEASE_EXPIRED;
+        if (lastHeartbeatStatusSequence != statusSequence || block.timestamp >= healthyUntil) {
+            return AvailabilityReason.LEASE_EXPIRED;
+        }
         return AvailabilityReason.HEALTHY;
     }
 
@@ -278,6 +292,9 @@ contract RobinhoodSequencerAvailabilityFeed is IAggregatorV3, EIP712 {
     ) private view {
         if (heartbeat.observerSetVersion != observerSetVersion) {
             revert ObserverSetVersionMismatch(observerSetVersion, heartbeat.observerSetVersion);
+        }
+        if (heartbeat.statusSequence != statusSequence) {
+            revert HeartbeatStatusSequenceMismatch(statusSequence, heartbeat.statusSequence);
         }
         if (heartbeat.observedBlockNumber <= lastObservedBlockNumber) {
             revert ObservedBlockNotNewer(lastObservedBlockNumber, heartbeat.observedBlockNumber);
@@ -350,6 +367,7 @@ contract RobinhoodSequencerAvailabilityFeed is IAggregatorV3, EIP712 {
                 abi.encode(
                     HEARTBEAT_TYPEHASH,
                     heartbeat.observerSetVersion,
+                    heartbeat.statusSequence,
                     heartbeat.observedBlockNumber,
                     heartbeat.observedBlockHash,
                     heartbeat.validUntil

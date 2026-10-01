@@ -54,10 +54,11 @@ Robinhood does not currently publish a canonical onchain uptime-feed proxy. This
 therefore includes a self-managed, Chainlink-interface-compatible signal. It is not a Chainlink
 feed and does not prove universal transaction inclusion. Quorum status transitions are recorded
 on Ethereum and delivered to Robinhood through retryable tickets. A separate Robinhood heartbeat
-renews every five minutes and expires after 15 minutes. The feed reports healthy only when the
-latest L1 state is healthy and the L2 lease is active. Production use still requires deployment,
-independent operators, key custody, monitoring, and an explicitly reviewed recovery grace
-period. See [Sequencer signal operations](docs/SEQUENCER_SIGNAL.md).
+renews every five minutes and expires after 15 minutes. Each heartbeat is signed for the current
+L1 status sequence. The feed reports healthy only when the latest L1 state is healthy and the L2
+lease for that exact status sequence is active. Production use still requires deployment,
+independent operators, key custody, monitoring, and an explicitly reviewed recovery grace period.
+See [Sequencer signal operations](docs/SEQUENCER_SIGNAL.md).
 Asset-specific feed heartbeats and `maxAge` policies must likewise be sourced and reviewed
 before an asset is enabled; placeholder safety parameters are not acceptable.
 

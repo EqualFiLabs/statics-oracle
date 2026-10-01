@@ -180,6 +180,8 @@ An asset whose token/feed pair has been identified but SHALL NOT become enabled 
 10. THE Oracle System SHALL NOT describe the self-managed observed-availability signal as a canonical or Chainlink-managed uptime feed.
 11. IF sequencer protection is required but its configuration is missing, expired, invalid, or behind the L1 status, THEN protected state-changing price reads SHALL fail closed.
 12. THE L2 feed SHALL expose `UNINITIALIZED`, `HEALTHY`, `L1_REPORTED_IMPAIRED`, and `LEASE_EXPIRED` diagnostic reasons.
+13. EACH L2 heartbeat SHALL be signed for the current observer-set version and L1 status sequence, and a heartbeat from an earlier status sequence SHALL NOT restore health after a later status is applied.
+14. AUTHENTICATED configuration and status deliveries SHALL support monotonic catch-up after an earlier retryable expires, while configuration catch-up and observer rotation SHALL leave the feed impaired until fresh health evidence is accepted.
 
 ---
 

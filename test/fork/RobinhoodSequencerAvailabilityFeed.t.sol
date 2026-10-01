@@ -35,6 +35,7 @@ contract RobinhoodSequencerAvailabilityFeedForkTest is RobinhoodForkBase {
         RobinhoodSequencerAvailabilityFeed.Heartbeat memory heartbeat =
             RobinhoodSequencerAvailabilityFeed.Heartbeat({
                 observerSetVersion: feed.observerSetVersion(),
+                statusSequence: feed.statusSequence(),
                 observedBlockNumber: observedBlockNumber,
                 observedBlockHash: observedBlockHash,
                 validUntil: uint64(block.timestamp + feed.MAX_LEASE_DURATION())

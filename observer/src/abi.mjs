@@ -1,6 +1,7 @@
 export const feedAbi = [
   { type: "function", name: "l1Reporter", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
   { type: "function", name: "observerSetVersion", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
+  { type: "function", name: "statusSequence", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
   { type: "function", name: "lastObservedBlockNumber", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
   { type: "function", name: "healthyUntil", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
   { type: "function", name: "threshold", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
@@ -16,6 +17,7 @@ export const feedAbi = [
         type: "tuple",
         components: [
           { name: "observerSetVersion", type: "uint64" },
+          { name: "statusSequence", type: "uint64" },
           { name: "observedBlockNumber", type: "uint64" },
           { name: "observedBlockHash", type: "bytes32" },
           { name: "validUntil", type: "uint64" },
@@ -61,6 +63,7 @@ export const reporterAbi = [
 export const heartbeatTypes = {
   Heartbeat: [
     { name: "observerSetVersion", type: "uint64" },
+    { name: "statusSequence", type: "uint64" },
     { name: "observedBlockNumber", type: "uint64" },
     { name: "observedBlockHash", type: "bytes32" },
     { name: "validUntil", type: "uint64" },

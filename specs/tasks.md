@@ -244,9 +244,10 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
   - [x] 6.4 Implement hybrid L1 status and L2 heartbeat contracts
     - Keep the authoritative observer set and transition ordering on Ethereum.
     - Deliver configuration and status through chain-specific retryable tickets.
-    - Verify sorted EIP-712 heartbeat signatures and a recent canonical block hash on L2.
+    - Verify sorted EIP-712 heartbeat signatures bound to the active observer-set version and status sequence, plus a recent canonical block hash on L2.
     - Expire the L2 healthy lease after at most 15 minutes without requiring a write.
-    - Invalidate the lease and fail closed when the L1 observer set changes.
+    - Accept authenticated monotonic catch-up when an earlier configuration or status retryable expires.
+    - Invalidate the lease and fail closed when the L1 observer set or status sequence changes.
     - _Requirements: 7.1-7.8_
 
   - [x] 6.5 Implement independent observer and coordinator services

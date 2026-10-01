@@ -93,8 +93,9 @@ async function sampleAvailability() {
 async function signHeartbeat(rawHeartbeat) {
   if (tracker.state !== ObserverState.HEALTHY || !lastSample) throw new Error("observer is not healthy");
   const heartbeat = normalizeHeartbeat(rawHeartbeat);
-  const [version, lastBlock, authorized] = await Promise.all([
+  const [version, statusSequence, lastBlock, authorized] = await Promise.all([
     l2Client.readContract({ address: feedAddress, abi: feedAbi, functionName: "observerSetVersion" }),
+    l2Client.readContract({ address: feedAddress, abi: feedAbi, functionName: "statusSequence" }),
     l2Client.readContract({ address: feedAddress, abi: feedAbi, functionName: "lastObservedBlockNumber" }),
     l2Client.readContract({ address: feedAddress, abi: feedAbi, functionName: "isObserver", args: [account.address] }),
   ]);
@@ -109,6 +110,7 @@ async function signHeartbeat(rawHeartbeat) {
   validateHeartbeat({
     heartbeat,
     expectedObserverSetVersion: version,
+    expectedStatusSequence: statusSequence,
     ...lastSample,
     referenceBlock,
     now: BigInt(Math.floor(Date.now() / 1_000)),

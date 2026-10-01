@@ -20,11 +20,13 @@ function validHeartbeatInput() {
   return {
     heartbeat: normalizeHeartbeat({
       observerSetVersion: "4",
+      statusSequence: "9",
       observedBlockNumber: "98",
       observedBlockHash: hash,
       validUntil: now + LEASE_SECONDS,
     }),
     expectedObserverSetVersion: 4n,
+    expectedStatusSequence: 9n,
     directHead: { number: 100n, hash: `0x${"22".repeat(32)}`, timestamp: now - 1n },
     referenceHead: { number: 101n, hash: `0x${"33".repeat(32)}`, timestamp: now - 2n },
     directReferenceBlock: { number: 100n, hash: `0x${"22".repeat(32)}`, timestamp: now - 1n },
@@ -69,6 +71,10 @@ test("rejects disagreement and overlong leases", () => {
   const overlong = validHeartbeatInput();
   overlong.heartbeat.validUntil += 1n;
   assert.throws(() => validateHeartbeat(overlong), /too long/);
+
+  const staleStatus = validHeartbeatInput();
+  staleStatus.heartbeat.statusSequence -= 1n;
+  assert.throws(() => validateHeartbeat(staleStatus), /status sequence changed/);
 });
 
 test("rejects future-dated heads before local recovery", () => {

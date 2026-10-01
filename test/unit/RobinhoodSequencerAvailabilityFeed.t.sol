@@ -121,7 +121,7 @@ contract RobinhoodSequencerAvailabilityFeedTest is Test {
         feed.submitHeartbeat(stale, staleSignatures);
     }
 
-    function test_OnlyAliasCanApplyOrderedCrossChainMessages() external {
+    function test_OnlyAliasCanApplyCrossChainMessages() external {
         vm.expectRevert(
             abi.encodeWithSelector(
                 RobinhoodSequencerAvailabilityFeed.NotAliasedL1Reporter.selector,
@@ -131,14 +131,6 @@ contract RobinhoodSequencerAvailabilityFeedTest is Test {
         );
         feed.applyConfiguration(1, 0, observers, 2, uint64(block.timestamp));
 
-        vm.prank(aliasReporter);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodSequencerAvailabilityFeed.ConfigurationVersionGap.selector, 1, 2
-            )
-        );
-        feed.applyConfiguration(2, 0, observers, 2, uint64(block.timestamp));
-
         _configure(1, 0);
         vm.prank(aliasReporter);
         vm.expectRevert(
@@ -147,6 +139,45 @@ contract RobinhoodSequencerAvailabilityFeedTest is Test {
             )
         );
         feed.applyStatus(2, 1, true, uint64(block.timestamp));
+    }
+
+    function test_AuthenticatedLatestConfigurationCanAdvanceAcrossMissingRetryable() external {
+        _configure(1, 0);
+        _status(1, true);
+        RobinhoodSequencerAvailabilityFeed.Heartbeat memory heartbeat = _heartbeat(999, 15 minutes);
+        feed.submitHeartbeat(heartbeat, _sign(heartbeat, 2));
+        assertTrue(feed.isUp());
+
+        vm.prank(aliasReporter);
+        feed.applyConfiguration(3, 3, observers, 2, uint64(block.timestamp));
+        assertEq(feed.observerSetVersion(), 3);
+        assertEq(feed.statusSequence(), 3);
+        assertFalse(feed.l1Healthy());
+        assertFalse(feed.isUp());
+
+        vm.prank(aliasReporter);
+        feed.applyStatus(3, 3, true, uint64(block.timestamp));
+        assertTrue(feed.l1Healthy());
+        assertFalse(feed.isUp());
+        vm.roll(1_001);
+        RobinhoodSequencerAvailabilityFeed.Heartbeat memory recovery = _heartbeat(1_000, 15 minutes);
+        feed.submitHeartbeat(recovery, _sign(recovery, 2));
+        assertTrue(feed.isUp());
+
+        vm.prank(aliasReporter);
+        feed.applyConfiguration(2, 2, observers, 2, uint64(block.timestamp));
+        assertEq(feed.observerSetVersion(), 3);
+        assertEq(feed.statusSequence(), 3);
+
+        vm.prank(aliasReporter);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RobinhoodSequencerAvailabilityFeed.ConfigurationStatusSequenceRegression.selector,
+                3,
+                2
+            )
+        );
+        feed.applyConfiguration(4, 2, observers, 2, uint64(block.timestamp));
     }
 
     function test_AuthenticatedLatestStatusCanAdvanceAcrossMissingRetryable() external {
@@ -172,6 +203,10 @@ contract RobinhoodSequencerAvailabilityFeedTest is Test {
         assertTrue(feed.isUp());
 
         vm.warp(block.timestamp + 5 minutes);
+        vm.roll(1_001);
+        RobinhoodSequencerAvailabilityFeed.Heartbeat memory collectedBeforeCatchUp =
+            _heartbeat(1_000, 15 minutes);
+        bytes[] memory staleSignatures = _sign(collectedBeforeCatchUp, 2);
         vm.prank(aliasReporter);
         feed.applyStatus(1, 3, true, uint64(block.timestamp));
 
@@ -180,7 +215,13 @@ contract RobinhoodSequencerAvailabilityFeedTest is Test {
         assertEq(feed.healthyUntil(), block.timestamp);
         assertEq(uint8(feed.availabilityReason()), 3);
 
-        vm.roll(1_001);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RobinhoodSequencerAvailabilityFeed.HeartbeatStatusSequenceMismatch.selector, 3, 1
+            )
+        );
+        feed.submitHeartbeat(collectedBeforeCatchUp, staleSignatures);
+
         RobinhoodSequencerAvailabilityFeed.Heartbeat memory recovery = _heartbeat(1_000, 15 minutes);
         feed.submitHeartbeat(recovery, _sign(recovery, 2));
         assertTrue(feed.isUp());
@@ -251,6 +292,13 @@ contract RobinhoodSequencerAvailabilityFeedTest is Test {
         _status(3, true);
         assertEq(
             uint8(oracle.peekPrice(address(token)).status),
+            uint8(IStaticsOracle.OracleStatus.SEQUENCER_DOWN)
+        );
+        vm.roll(1_001);
+        RobinhoodSequencerAvailabilityFeed.Heartbeat memory recovery = _heartbeat(1_000, 15 minutes);
+        feed.submitHeartbeat(recovery, _sign(recovery, 2));
+        assertEq(
+            uint8(oracle.peekPrice(address(token)).status),
             uint8(IStaticsOracle.OracleStatus.SEQUENCER_GRACE_PERIOD)
         );
     }
@@ -278,7 +326,11 @@ contract RobinhoodSequencerAvailabilityFeedTest is Test {
         elapsed = uint32(bound(elapsed, 0, 20 minutes));
         vm.warp(block.timestamp + elapsed);
         (, int256 answer,,,) = feed.latestRoundData();
-        assertEq(answer == 0, feed.l1Healthy() && block.timestamp < feed.healthyUntil());
+        assertEq(
+            answer == 0,
+            feed.l1Healthy() && feed.lastHeartbeatStatusSequence() == feed.statusSequence()
+                && block.timestamp < feed.healthyUntil()
+        );
     }
 
     function _configure(
@@ -306,6 +358,7 @@ contract RobinhoodSequencerAvailabilityFeedTest is Test {
         vm.setBlockhash(blockNumber, hash);
         heartbeat = RobinhoodSequencerAvailabilityFeed.Heartbeat({
             observerSetVersion: feed.observerSetVersion(),
+            statusSequence: feed.statusSequence(),
             observedBlockNumber: blockNumber,
             observedBlockHash: hash,
             validUntil: uint64(block.timestamp + duration)

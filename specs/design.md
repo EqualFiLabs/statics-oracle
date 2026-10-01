@@ -1063,10 +1063,14 @@ Ethereum reporter, which validates EIP-712 quorum and creates a retryable ticket
 The Ethereum Safe is the only observer-set authority. Observer rotation immediately records an
 impaired state and queues the new configuration.
 
-Observers also sign a direct Robinhood heartbeat every five minutes. Each heartbeat creates a
-lease of at most 15 minutes. The L2 feed is healthy only when the latest L1 state is healthy and
-the lease is active. Lease expiry requires no transaction. The L2 contract verifies the signed
+Observers also sign a direct Robinhood heartbeat every five minutes. Each heartbeat is bound to
+the active observer-set version and L1 status sequence and creates a lease of at most 15 minutes.
+The L2 feed is healthy only when the latest L1 state is healthy and a lease for that exact status
+sequence is active. Lease expiry requires no transaction. The L2 contract verifies the signed
 block hash against `blockhash`, rejects current or old blocks, and exposes a diagnostic reason.
+Authenticated configuration and status messages may advance monotonically across an expired
+retryable. Configuration catch-up remains impaired, and any status advance requires a heartbeat
+signed for the resulting sequence before the feed can report healthy.
 
 When down: `SEQUENCER_DOWN`.
 

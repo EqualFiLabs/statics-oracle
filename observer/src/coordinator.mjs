@@ -162,14 +162,16 @@ async function reconcileStatus() {
 }
 
 async function renewHeartbeat() {
-  const [version, lastBlock, healthyUntil, threshold, observers, directHead] = await Promise.all([
-    l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "observerSetVersion" }),
-    l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "lastObservedBlockNumber" }),
-    l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "healthyUntil" }),
-    l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "threshold" }),
-    l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "observers" }),
-    readSequencerFeedHead(directFeedUrl),
-  ]);
+  const [version, statusSequence, lastBlock, healthyUntil, threshold, observers, directHead] =
+    await Promise.all([
+      l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "observerSetVersion" }),
+      l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "statusSequence" }),
+      l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "lastObservedBlockNumber" }),
+      l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "healthyUntil" }),
+      l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "threshold" }),
+      l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "observers" }),
+      readSequencerFeedHead(directFeedUrl),
+    ]);
   const now = BigInt(Math.floor(Date.now() / 1_000));
   if (!heartbeatDue(healthyUntil, now)) return;
   if (directHead.number === 0n) throw new Error("sequencer feed returned genesis");
@@ -182,11 +184,21 @@ async function renewHeartbeat() {
   const referenceHead = await getBlock(robinhoodRpcUrl);
   const heartbeat = normalizeHeartbeat({
     observerSetVersion: version,
+    statusSequence,
     observedBlockNumber: targetBlock,
     observedBlockHash: referenceBlock.hash,
     validUntil: now + LEASE_SECONDS,
   });
-  validateHeartbeat({ heartbeat, expectedObserverSetVersion: version, directHead, referenceHead, directReferenceBlock, referenceBlock, now });
+  validateHeartbeat({
+    heartbeat,
+    expectedObserverSetVersion: version,
+    expectedStatusSequence: statusSequence,
+    directHead,
+    referenceHead,
+    directReferenceBlock,
+    referenceBlock,
+    now,
+  });
   const quorum = await collectSignatures({
     path: "/heartbeat",
     field: "heartbeat",
