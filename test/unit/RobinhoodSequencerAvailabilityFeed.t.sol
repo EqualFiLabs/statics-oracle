@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Test } from "forge-std/Test.sol";
 
 import { RobinhoodSequencerAvailabilityFeed } from "src/RobinhoodSequencerAvailabilityFeed.sol";
@@ -10,117 +9,176 @@ import { IStaticsOracle } from "src/interfaces/IStaticsOracle.sol";
 import { OracleFeedTestMock, OracleTokenTestMock } from "test/mocks/OracleTestMocks.sol";
 
 contract RobinhoodSequencerAvailabilityFeedTest is Test {
-    uint256 internal constant OBSERVER_A_KEY = 0xA11CE;
-    uint256 internal constant OBSERVER_B_KEY = 0xB0B;
-    uint256 internal constant OBSERVER_C_KEY = 0xCA401;
+    uint256 internal constant KEY_A = 0xA11CE;
+    uint256 internal constant KEY_B = 0xB0B;
+    uint256 internal constant KEY_C = 0xCA401;
+    address internal constant REPORTER = address(0x123456);
 
     RobinhoodSequencerAvailabilityFeed internal feed;
-    address[] internal observerAddresses;
-    uint256[] internal observerKeys;
+    address[] internal observers;
+    uint256[] internal keys;
+    address internal aliasReporter;
 
     function setUp() external {
-        vm.chainId(4663);
+        vm.chainId(4_663);
         vm.warp(10 days);
         vm.roll(1_000);
-
-        uint256[] memory keys = new uint256[](3);
-        keys[0] = OBSERVER_A_KEY;
-        keys[1] = OBSERVER_B_KEY;
-        keys[2] = OBSERVER_C_KEY;
-        _sortKeysByAddress(keys);
+        keys.push(KEY_A);
+        keys.push(KEY_B);
+        keys.push(KEY_C);
+        _sortKeys();
         for (uint256 i; i < keys.length; ++i) {
-            observerKeys.push(keys[i]);
-            observerAddresses.push(vm.addr(keys[i]));
+            observers.push(vm.addr(keys[i]));
         }
-
-        feed = new RobinhoodSequencerAvailabilityFeed(address(this), observerAddresses, 2);
+        feed = new RobinhoodSequencerAvailabilityFeed(REPORTER);
+        aliasReporter = feed.aliasedL1Reporter();
     }
 
-    function test_InitialStateIsDownAndChainlinkCompatible() external view {
+    function test_InitialStateIsFailClosedAndChainlinkCompatible() external view {
         assertFalse(feed.isUp());
+        assertEq(uint8(feed.availabilityReason()), 0);
         assertEq(feed.decimals(), 0);
-        assertEq(feed.description(), "Robinhood Sequencer Availability");
-        assertEq(feed.version(), 1);
-        assertEq(feed.observerSetVersion(), 1);
+        assertEq(feed.version(), 2);
+        assertEq(feed.l1Reporter(), REPORTER);
+        _assertRound(1, 1, feed.deployedAt(), feed.deployedAt());
+    }
+
+    function test_AliasedReporterConfiguresAndStatusPlusHeartbeatRecovers() external {
+        _configure(1, 0);
+        assertEq(feed.observers(), observers);
         assertEq(feed.threshold(), 2);
-        assertEq(feed.observerCount(), 3);
-        assertEq(feed.observers(), observerAddresses);
+        assertEq(uint8(feed.availabilityReason()), 2);
 
-        (
-            uint80 roundId,
-            int256 answer,
-            uint256 startedAt,
-            uint256 updatedAt,
-            uint80 answeredInRound
-        ) = feed.latestRoundData();
-        assertEq(roundId, 1);
-        assertEq(answer, 1);
-        assertEq(startedAt, feed.deployedAt());
-        assertEq(updatedAt, feed.deployedAt());
-        assertEq(answeredInRound, roundId);
-    }
+        _status(1, true);
+        assertEq(uint8(feed.availabilityReason()), 3);
 
-    function test_QuorumObservationCreatesAndRenewsHealthyLease() external {
-        bytes32 firstHash = keccak256("block-999");
-        vm.setBlockhash(999, firstHash);
-        RobinhoodSequencerAvailabilityFeed.Observation memory first =
-            _observation(999, firstHash, block.timestamp + 95 seconds);
-
-        feed.submitObservation(first, _sign(first, 2));
+        RobinhoodSequencerAvailabilityFeed.Heartbeat memory heartbeat = _heartbeat(999, 15 minutes);
+        feed.submitHeartbeat(heartbeat, _sign(heartbeat, 2));
 
         assertTrue(feed.isUp());
-        assertEq(feed.lastObservedBlockNumber(), 999);
-        assertEq(feed.lastObservedBlockHash(), firstHash);
-        assertEq(feed.healthyUntil(), first.validUntil);
+        assertEq(uint8(feed.availabilityReason()), 1);
+        assertEq(feed.healthyUntil(), heartbeat.validUntil);
         assertEq(feed.recoveredAt(), block.timestamp);
-        assertEq(feed.lastUpdatedAt(), block.timestamp);
         _assertRound(2, 0, block.timestamp, block.timestamp);
-
-        uint256 recoveredAt = block.timestamp;
-        vm.warp(block.timestamp + 30 seconds);
-        vm.roll(1_001);
-        bytes32 secondHash = keccak256("block-1000");
-        vm.setBlockhash(1_000, secondHash);
-        RobinhoodSequencerAvailabilityFeed.Observation memory second =
-            _observation(1_000, secondHash, block.timestamp + 95 seconds);
-
-        feed.submitObservation(second, _sign(second, 3));
-
-        assertEq(feed.recoveredAt(), recoveredAt);
-        assertEq(feed.lastUpdatedAt(), block.timestamp);
-        _assertRound(3, 0, recoveredAt, block.timestamp);
     }
 
-    function test_LeaseExpiresWithoutTransactionAndRecoveryStartsNewRound() external {
-        bytes32 firstHash = keccak256("block-999");
-        vm.setBlockhash(999, firstHash);
-        RobinhoodSequencerAvailabilityFeed.Observation memory first =
-            _observation(999, firstHash, block.timestamp + 95 seconds);
-        feed.submitObservation(first, _sign(first, 2));
+    function test_LeaseExpiresWithoutWriteAndRecoveryGetsFullGrace() external {
+        _configure(1, 0);
+        _status(1, true);
+        RobinhoodSequencerAvailabilityFeed.Heartbeat memory first = _heartbeat(999, 15 minutes);
+        feed.submitHeartbeat(first, _sign(first, 2));
 
-        uint256 expiredAt = first.validUntil;
-        vm.warp(expiredAt);
+        vm.warp(first.validUntil);
         assertFalse(feed.isUp());
-        _assertRound(3, 1, expiredAt, expiredAt);
+        assertEq(uint8(feed.availabilityReason()), 3);
+        _assertRound(3, 1, first.validUntil, first.validUntil);
 
         vm.roll(1_001);
-        bytes32 recoveryHash = keccak256("block-1000");
-        vm.setBlockhash(1_000, recoveryHash);
-        RobinhoodSequencerAvailabilityFeed.Observation memory recovery =
-            _observation(1_000, recoveryHash, block.timestamp + 95 seconds);
-        feed.submitObservation(recovery, _sign(recovery, 2));
-
+        RobinhoodSequencerAvailabilityFeed.Heartbeat memory recovery = _heartbeat(1_000, 15 minutes);
+        feed.submitHeartbeat(recovery, _sign(recovery, 2));
         assertTrue(feed.isUp());
-        assertEq(feed.recoveredAt(), expiredAt);
-        _assertRound(4, 0, expiredAt, expiredAt);
+        _assertRound(4, 0, block.timestamp, block.timestamp);
     }
 
-    function test_LeaseExpiryAndRecoveryGateStaticsOracle() external {
-        bytes32 firstHash = keccak256("block-999");
-        vm.setBlockhash(999, firstHash);
-        RobinhoodSequencerAvailabilityFeed.Observation memory first =
-            _observation(999, firstHash, block.timestamp + 95 seconds);
-        feed.submitObservation(first, _sign(first, 2));
+    function test_L1ImpairmentOverridesActiveLeaseAndStaleMessagesAreNoOps() external {
+        _configure(1, 0);
+        _status(1, true);
+        RobinhoodSequencerAvailabilityFeed.Heartbeat memory heartbeat = _heartbeat(999, 15 minutes);
+        feed.submitHeartbeat(heartbeat, _sign(heartbeat, 2));
+
+        vm.warp(block.timestamp + 1 minutes);
+        _status(2, false);
+        assertFalse(feed.isUp());
+        assertEq(uint8(feed.availabilityReason()), 2);
+        _assertRound(3, 1, block.timestamp, block.timestamp);
+
+        vm.prank(aliasReporter);
+        feed.applyStatus(1, 1, true, uint64(block.timestamp));
+        assertFalse(feed.isUp());
+        assertEq(feed.statusSequence(), 2);
+    }
+
+    function test_ConfigurationRotationInvalidatesLeaseAndOldHeartbeats() external {
+        _configure(1, 0);
+        _status(1, true);
+        RobinhoodSequencerAvailabilityFeed.Heartbeat memory heartbeat = _heartbeat(999, 15 minutes);
+        feed.submitHeartbeat(heartbeat, _sign(heartbeat, 2));
+
+        _configure(2, 2);
+        assertFalse(feed.isUp());
+        assertEq(feed.observerSetVersion(), 2);
+        assertEq(feed.healthyUntil(), block.timestamp);
+
+        vm.roll(1_001);
+        RobinhoodSequencerAvailabilityFeed.Heartbeat memory stale = _heartbeat(1_000, 15 minutes);
+        stale.observerSetVersion = 1;
+        bytes[] memory staleSignatures = _sign(stale, 2);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RobinhoodSequencerAvailabilityFeed.ObserverSetVersionMismatch.selector, 2, 1
+            )
+        );
+        feed.submitHeartbeat(stale, staleSignatures);
+    }
+
+    function test_OnlyAliasCanApplyOrderedCrossChainMessages() external {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RobinhoodSequencerAvailabilityFeed.NotAliasedL1Reporter.selector,
+                address(this),
+                aliasReporter
+            )
+        );
+        feed.applyConfiguration(1, 0, observers, 2, uint64(block.timestamp));
+
+        vm.prank(aliasReporter);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RobinhoodSequencerAvailabilityFeed.ConfigurationVersionGap.selector, 1, 2
+            )
+        );
+        feed.applyConfiguration(2, 0, observers, 2, uint64(block.timestamp));
+
+        _configure(1, 0);
+        vm.prank(aliasReporter);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RobinhoodSequencerAvailabilityFeed.StatusConfigurationNotApplied.selector, 1, 2
+            )
+        );
+        feed.applyStatus(2, 1, true, uint64(block.timestamp));
+    }
+
+    function test_HeartbeatRequiresQuorumCanonicalBlockAndBoundedLease() external {
+        _configure(1, 0);
+        _status(1, true);
+        RobinhoodSequencerAvailabilityFeed.Heartbeat memory heartbeat = _heartbeat(999, 15 minutes);
+        bytes[] memory oneSignature = _sign(heartbeat, 1);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RobinhoodSequencerAvailabilityFeed.InsufficientSignatures.selector, 1, 2
+            )
+        );
+        feed.submitHeartbeat(heartbeat, oneSignature);
+
+        heartbeat.validUntil += 1;
+        bytes[] memory signatures = _sign(heartbeat, 2);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RobinhoodSequencerAvailabilityFeed.LeaseTooLong.selector,
+                heartbeat.validUntil,
+                block.timestamp + 15 minutes
+            )
+        );
+        feed.submitHeartbeat(heartbeat, signatures);
+    }
+
+    function test_EffectiveRecoveryIntegratesWithStaticsOracleGracePeriod() external {
+        _configure(1, 0);
+        _status(1, true);
+        RobinhoodSequencerAvailabilityFeed.Heartbeat memory heartbeat = _heartbeat(999, 15 minutes);
+        feed.submitHeartbeat(heartbeat, _sign(heartbeat, 2));
 
         StaticsOracle oracle = new StaticsOracle(address(this));
         OracleTokenTestMock token = new OracleTokenTestMock(18);
@@ -139,362 +197,93 @@ contract RobinhoodSequencerAvailabilityFeedTest is Test {
                 checkOraclePause: false
             })
         );
-
         vm.warp(block.timestamp + 31 seconds);
         oracle.enableAsset(address(token));
         assertEq(oracle.priceUsd(address(token)), 100e18);
 
-        vm.warp(first.validUntil);
+        _status(2, false);
         assertEq(
             uint8(oracle.peekPrice(address(token)).status),
             uint8(IStaticsOracle.OracleStatus.SEQUENCER_DOWN)
         );
-        vm.expectRevert(StaticsOracle.SequencerDown.selector);
-        oracle.priceUsd(address(token));
-
-        vm.roll(1_001);
-        bytes32 recoveryHash = keccak256("block-1000");
-        vm.setBlockhash(1_000, recoveryHash);
-        RobinhoodSequencerAvailabilityFeed.Observation memory recovery =
-            _observation(1_000, recoveryHash, block.timestamp + 95 seconds);
-        feed.submitObservation(recovery, _sign(recovery, 2));
-
+        vm.warp(block.timestamp + 1);
+        _status(3, true);
         assertEq(
             uint8(oracle.peekPrice(address(token)).status),
             uint8(IStaticsOracle.OracleStatus.SEQUENCER_GRACE_PERIOD)
         );
-        vm.warp(block.timestamp + 31 seconds);
-        assertEq(oracle.priceUsd(address(token)), 100e18);
     }
 
-    function test_ObserverRotationInvalidatesLeaseAndOldSignatures() external {
-        bytes32 firstHash = keccak256("block-999");
-        vm.setBlockhash(999, firstHash);
-        RobinhoodSequencerAvailabilityFeed.Observation memory first =
-            _observation(999, firstHash, block.timestamp + 95 seconds);
-        feed.submitObservation(first, _sign(first, 2));
+    function test_DeploymentSupportsOnlyRobinhoodMainnetAndTestnet() external {
+        vm.chainId(46_630);
+        RobinhoodSequencerAvailabilityFeed testnetFeed =
+            new RobinhoodSequencerAvailabilityFeed(REPORTER);
+        assertEq(testnetFeed.l1Reporter(), REPORTER);
 
-        uint64 previousHealthyUntil = feed.healthyUntil();
-        feed.setObserverSet(observerAddresses, 2);
-
-        assertFalse(feed.isUp());
-        assertEq(feed.observerSetVersion(), 2);
-        assertEq(feed.healthyUntil(), block.timestamp);
-        assertLt(feed.healthyUntil(), previousHealthyUntil);
-
-        vm.roll(1_001);
-        bytes32 secondHash = keccak256("block-1000");
-        vm.setBlockhash(1_000, secondHash);
-        RobinhoodSequencerAvailabilityFeed.Observation memory staleVersion =
-            _observation(1_000, secondHash, block.timestamp + 95 seconds);
-        staleVersion.observerSetVersion = 1;
-        bytes[] memory staleSignatures = _sign(staleVersion, 2);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodSequencerAvailabilityFeed.ObserverSetVersionMismatch.selector, 2, 1
-            )
-        );
-        feed.submitObservation(staleVersion, staleSignatures);
-    }
-
-    function test_RevertWhen_ObservationDoesNotHaveStrictMajorityQuorum() external {
-        bytes32 observedHash = keccak256("block-999");
-        vm.setBlockhash(999, observedHash);
-        RobinhoodSequencerAvailabilityFeed.Observation memory observation =
-            _observation(999, observedHash, block.timestamp + 95 seconds);
-        bytes[] memory insufficientSignatures = _sign(observation, 1);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodSequencerAvailabilityFeed.InsufficientSignatures.selector, 1, 2
-            )
-        );
-        feed.submitObservation(observation, insufficientSignatures);
-
-        bytes[] memory duplicateSignatures = new bytes[](2);
-        duplicateSignatures[0] = _signature(observerKeys[0], feed.observationDigest(observation));
-        duplicateSignatures[1] = duplicateSignatures[0];
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodSequencerAvailabilityFeed.SignersNotStrictlyIncreasing.selector,
-                observerAddresses[0],
-                observerAddresses[0]
-            )
-        );
-        feed.submitObservation(observation, duplicateSignatures);
-    }
-
-    function test_RevertWhen_SignerIsNotAnObserver() external {
-        bytes32 observedHash = keccak256("block-999");
-        vm.setBlockhash(999, observedHash);
-        RobinhoodSequencerAvailabilityFeed.Observation memory observation =
-            _observation(999, observedHash, block.timestamp + 95 seconds);
-        bytes32 digest = feed.observationDigest(observation);
-
-        uint256[] memory keys = new uint256[](2);
-        keys[0] = observerKeys[0];
-        keys[1] = 0xBAD;
-        _sortKeysByAddress(keys);
-        bytes[] memory signatures = new bytes[](2);
-        for (uint256 i; i < keys.length; ++i) {
-            signatures[i] = _signature(keys[i], digest);
-        }
-
-        address attacker = vm.addr(0xBAD);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodSequencerAvailabilityFeed.UnauthorizedObserver.selector, attacker
-            )
-        );
-        feed.submitObservation(observation, signatures);
-    }
-
-    function test_RevertWhen_SignatureIsMalformedOrCountExceedsObserverSet() external {
-        bytes32 observedHash = keccak256("block-999");
-        vm.setBlockhash(999, observedHash);
-        RobinhoodSequencerAvailabilityFeed.Observation memory observation =
-            _observation(999, observedHash, block.timestamp + 95 seconds);
-
-        bytes[] memory malformed = new bytes[](2);
-        malformed[0] = hex"1234";
-        malformed[1] = _signature(observerKeys[1], feed.observationDigest(observation));
-        vm.expectRevert(
-            abi.encodeWithSelector(RobinhoodSequencerAvailabilityFeed.InvalidSignature.selector, 0)
-        );
-        feed.submitObservation(observation, malformed);
-
-        bytes[] memory excessive = new bytes[](4);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodSequencerAvailabilityFeed.TooManySignatures.selector, 4, 3
-            )
-        );
-        feed.submitObservation(observation, excessive);
-    }
-
-    function test_RevertWhen_ObservedBlockIsReplayed() external {
-        bytes32 observedHash = keccak256("block-999");
-        vm.setBlockhash(999, observedHash);
-        RobinhoodSequencerAvailabilityFeed.Observation memory observation =
-            _observation(999, observedHash, block.timestamp + 95 seconds);
-        bytes[] memory signatures = _sign(observation, 2);
-        feed.submitObservation(observation, signatures);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodSequencerAvailabilityFeed.ObservedBlockNotNewer.selector, 999, 999
-            )
-        );
-        feed.submitObservation(observation, signatures);
-    }
-
-    function test_RevertWhen_BlockEvidenceIsInvalid() external {
-        bytes32 canonicalHash = keccak256("block-999");
-        vm.setBlockhash(999, canonicalHash);
-
-        RobinhoodSequencerAvailabilityFeed.Observation memory currentBlock =
-            _observation(1_000, canonicalHash, block.timestamp + 95 seconds);
-        bytes[] memory currentBlockSignatures = _sign(currentBlock, 2);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodSequencerAvailabilityFeed.ObservedBlockNotFinalized.selector, 1_000, 1_000
-            )
-        );
-        feed.submitObservation(currentBlock, currentBlockSignatures);
-
-        RobinhoodSequencerAvailabilityFeed.Observation memory wrongHash =
-            _observation(999, keccak256("wrong"), block.timestamp + 95 seconds);
-        bytes[] memory wrongHashSignatures = _sign(wrongHash, 2);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodSequencerAvailabilityFeed.ObservedBlockHashMismatch.selector,
-                canonicalHash,
-                wrongHash.observedBlockHash
-            )
-        );
-        feed.submitObservation(wrongHash, wrongHashSignatures);
-
-        RobinhoodSequencerAvailabilityFeed.Observation memory tooOld =
-            _observation(759, keccak256("old"), block.timestamp + 95 seconds);
-        bytes[] memory tooOldSignatures = _sign(tooOld, 2);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodSequencerAvailabilityFeed.ObservedBlockTooOld.selector, 759, 1_000
-            )
-        );
-        feed.submitObservation(tooOld, tooOldSignatures);
-    }
-
-    function test_RevertWhen_LeaseIsInvalidOrDoesNotExtend() external {
-        bytes32 firstHash = keccak256("block-999");
-        vm.setBlockhash(999, firstHash);
-
-        RobinhoodSequencerAvailabilityFeed.Observation memory expired =
-            _observation(999, firstHash, block.timestamp);
-        bytes[] memory expiredSignatures = _sign(expired, 2);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodSequencerAvailabilityFeed.LeaseExpired.selector,
-                block.timestamp,
-                block.timestamp
-            )
-        );
-        feed.submitObservation(expired, expiredSignatures);
-
-        RobinhoodSequencerAvailabilityFeed.Observation memory tooLong =
-            _observation(999, firstHash, block.timestamp + 96 seconds);
-        bytes[] memory tooLongSignatures = _sign(tooLong, 2);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodSequencerAvailabilityFeed.LeaseTooLong.selector,
-                block.timestamp + 96 seconds,
-                block.timestamp + 95 seconds
-            )
-        );
-        feed.submitObservation(tooLong, tooLongSignatures);
-
-        RobinhoodSequencerAvailabilityFeed.Observation memory first =
-            _observation(999, firstHash, block.timestamp + 95 seconds);
-        feed.submitObservation(first, _sign(first, 2));
-
-        vm.roll(1_001);
-        bytes32 secondHash = keccak256("block-1000");
-        vm.setBlockhash(1_000, secondHash);
-        RobinhoodSequencerAvailabilityFeed.Observation memory shorter =
-            _observation(1_000, secondHash, first.validUntil);
-        bytes[] memory shorterSignatures = _sign(shorter, 2);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodSequencerAvailabilityFeed.LeaseNotExtended.selector,
-                first.validUntil,
-                first.validUntil
-            )
-        );
-        feed.submitObservation(shorter, shorterSignatures);
-    }
-
-    function test_RevertWhen_ObserverConfigurationIsUnsafe() external {
-        address[] memory tooFew = new address[](2);
-        tooFew[0] = observerAddresses[0];
-        tooFew[1] = observerAddresses[1];
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodSequencerAvailabilityFeed.InvalidObserverCount.selector, 2
-            )
-        );
-        feed.setObserverSet(tooFew, 2);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodSequencerAvailabilityFeed.InvalidThreshold.selector, 1, 3
-            )
-        );
-        feed.setObserverSet(observerAddresses, 1);
-
-        address[] memory fourObservers = new address[](4);
-        fourObservers[0] = address(0x1000);
-        fourObservers[1] = address(0x2000);
-        fourObservers[2] = address(0x3000);
-        fourObservers[3] = address(0x4000);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodSequencerAvailabilityFeed.InvalidThreshold.selector, 2, 4
-            )
-        );
-        feed.setObserverSet(fourObservers, 2);
-
-        address[] memory unsorted = new address[](3);
-        unsorted[0] = observerAddresses[1];
-        unsorted[1] = observerAddresses[0];
-        unsorted[2] = observerAddresses[2];
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodSequencerAvailabilityFeed.ObserversNotStrictlyIncreasing.selector,
-                observerAddresses[1],
-                observerAddresses[0]
-            )
-        );
-        feed.setObserverSet(unsorted, 2);
-    }
-
-    function test_RevertWhen_NonOwnerRotatesObserversOrOwnerRenounces() external {
-        address nonOwner = makeAddr("nonOwner");
-        vm.prank(nonOwner);
-        vm.expectRevert(
-            abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, nonOwner)
-        );
-        feed.setObserverSet(observerAddresses, 2);
-
-        vm.expectRevert(RobinhoodSequencerAvailabilityFeed.OwnershipRenunciationDisabled.selector);
-        feed.renounceOwnership();
-    }
-
-    function test_DeploymentRejectsWrongChain() external {
         vm.chainId(1);
         vm.expectRevert(
-            abi.encodeWithSelector(RobinhoodSequencerAvailabilityFeed.WrongChain.selector, 4663, 1)
+            abi.encodeWithSelector(RobinhoodSequencerAvailabilityFeed.WrongChain.selector, 1)
         );
-        new RobinhoodSequencerAvailabilityFeed(address(this), observerAddresses, 2);
+        new RobinhoodSequencerAvailabilityFeed(REPORTER);
     }
 
-    function testFuzz_LeaseIsUpOnlyBeforeExpiry(
-        uint32 leaseDuration
+    function testFuzz_AnswerZeroIffL1HealthyAndLeaseActive(
+        uint32 elapsed
     ) external {
-        leaseDuration = uint32(bound(leaseDuration, 1, feed.MAX_LEASE_DURATION()));
-        bytes32 observedHash = keccak256("block-999");
-        vm.setBlockhash(999, observedHash);
-        RobinhoodSequencerAvailabilityFeed.Observation memory observation =
-            _observation(999, observedHash, block.timestamp + leaseDuration);
-        feed.submitObservation(observation, _sign(observation, 2));
-
-        vm.warp(observation.validUntil - 1);
-        assertTrue(feed.isUp());
-        (, int256 upAnswer,,,) = feed.latestRoundData();
-        assertEq(upAnswer, 0);
-
-        vm.warp(observation.validUntil);
-        assertFalse(feed.isUp());
-        (, int256 downAnswer, uint256 startedAt,,) = feed.latestRoundData();
-        assertEq(downAnswer, 1);
-        assertEq(startedAt, observation.validUntil);
+        _configure(1, 0);
+        _status(1, true);
+        RobinhoodSequencerAvailabilityFeed.Heartbeat memory heartbeat = _heartbeat(999, 15 minutes);
+        feed.submitHeartbeat(heartbeat, _sign(heartbeat, 2));
+        elapsed = uint32(bound(elapsed, 0, 20 minutes));
+        vm.warp(block.timestamp + elapsed);
+        (, int256 answer,,,) = feed.latestRoundData();
+        assertEq(answer == 0, feed.l1Healthy() && block.timestamp < feed.healthyUntil());
     }
 
-    function _observation(
-        uint64 observedBlockNumber,
-        bytes32 observedBlockHash,
-        uint256 validUntil
-    ) internal view returns (RobinhoodSequencerAvailabilityFeed.Observation memory) {
-        return RobinhoodSequencerAvailabilityFeed.Observation({
+    function _configure(
+        uint64 version,
+        uint64 sequence
+    ) internal {
+        vm.prank(aliasReporter);
+        feed.applyConfiguration(version, sequence, observers, 2, uint64(block.timestamp));
+    }
+
+    function _status(
+        uint64 sequence,
+        bool healthy
+    ) internal {
+        uint64 version = feed.observerSetVersion();
+        vm.prank(aliasReporter);
+        feed.applyStatus(version, sequence, healthy, uint64(block.timestamp));
+    }
+
+    function _heartbeat(
+        uint64 blockNumber,
+        uint64 duration
+    ) internal returns (RobinhoodSequencerAvailabilityFeed.Heartbeat memory heartbeat) {
+        bytes32 hash = keccak256(abi.encode(blockNumber));
+        vm.setBlockhash(blockNumber, hash);
+        heartbeat = RobinhoodSequencerAvailabilityFeed.Heartbeat({
             observerSetVersion: feed.observerSetVersion(),
-            observedBlockNumber: observedBlockNumber,
-            observedBlockHash: observedBlockHash,
-            validUntil: uint64(validUntil)
+            observedBlockNumber: blockNumber,
+            observedBlockHash: hash,
+            validUntil: uint64(block.timestamp + duration)
         });
     }
 
     function _sign(
-        RobinhoodSequencerAvailabilityFeed.Observation memory observation,
+        RobinhoodSequencerAvailabilityFeed.Heartbeat memory heartbeat,
         uint256 count
     ) internal view returns (bytes[] memory signatures) {
-        bytes32 digest = feed.observationDigest(observation);
+        bytes32 digest = feed.heartbeatDigest(heartbeat);
         signatures = new bytes[](count);
         for (uint256 i; i < count; ++i) {
-            signatures[i] = _signature(observerKeys[i], digest);
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(keys[i], digest);
+            signatures[i] = abi.encodePacked(r, s, v);
         }
     }
 
-    function _signature(
-        uint256 privateKey,
-        bytes32 digest
-    ) internal pure returns (bytes memory) {
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
-        return abi.encodePacked(r, s, v);
-    }
-
-    function _sortKeysByAddress(
-        uint256[] memory keys
-    ) internal pure {
+    function _sortKeys() internal {
         for (uint256 i = 1; i < keys.length; ++i) {
             uint256 key = keys[i];
             address signer = vm.addr(key);

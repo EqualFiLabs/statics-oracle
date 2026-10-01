@@ -22,25 +22,29 @@ contract RobinhoodSequencerAvailabilityFeedForkTest is RobinhoodForkBase {
     }
 
     function test_LiveRobinhoodBlockhashCanBackQuorumObservation() external {
-        RobinhoodSequencerAvailabilityFeed feed =
-            new RobinhoodSequencerAvailabilityFeed(address(this), _observers, 2);
+        address reporter = address(0x123456);
+        RobinhoodSequencerAvailabilityFeed feed = new RobinhoodSequencerAvailabilityFeed(reporter);
+        vm.prank(feed.aliasedL1Reporter());
+        feed.applyConfiguration(1, 0, _observers, 2, uint64(block.timestamp));
+        vm.prank(feed.aliasedL1Reporter());
+        feed.applyStatus(1, 1, true, uint64(block.timestamp));
         uint64 observedBlockNumber = uint64(block.number - 1);
         bytes32 observedBlockHash = blockhash(observedBlockNumber);
         assertNotEq(observedBlockHash, bytes32(0));
 
-        RobinhoodSequencerAvailabilityFeed.Observation memory observation =
-            RobinhoodSequencerAvailabilityFeed.Observation({
+        RobinhoodSequencerAvailabilityFeed.Heartbeat memory heartbeat =
+            RobinhoodSequencerAvailabilityFeed.Heartbeat({
                 observerSetVersion: feed.observerSetVersion(),
                 observedBlockNumber: observedBlockNumber,
                 observedBlockHash: observedBlockHash,
                 validUntil: uint64(block.timestamp + feed.MAX_LEASE_DURATION())
             });
-        bytes32 digest = feed.observationDigest(observation);
+        bytes32 digest = feed.heartbeatDigest(heartbeat);
         bytes[] memory signatures = new bytes[](2);
         signatures[0] = _signature(_keys[0], digest);
         signatures[1] = _signature(_keys[1], digest);
 
-        feed.submitObservation(observation, signatures);
+        feed.submitHeartbeat(heartbeat, signatures);
         (, int256 answer,,,) = feed.latestRoundData();
         assertEq(answer, 0);
     }

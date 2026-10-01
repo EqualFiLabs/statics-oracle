@@ -8,8 +8,12 @@ import { ConfigureStaticsOracle } from "script/ConfigureStaticsOracle.s.sol";
 import {
     DeployRobinhoodSequencerAvailabilityFeed
 } from "script/DeployRobinhoodSequencerAvailabilityFeed.s.sol";
+import {
+    DeployRobinhoodSequencerReporterL1
+} from "script/DeployRobinhoodSequencerReporterL1.s.sol";
 import { DeployStaticsOracle } from "script/DeployStaticsOracle.s.sol";
 import { RobinhoodSequencerAvailabilityFeed } from "src/RobinhoodSequencerAvailabilityFeed.sol";
+import { RobinhoodSequencerReporterL1 } from "src/RobinhoodSequencerReporterL1.sol";
 import { StaticsOracle } from "src/StaticsOracle.sol";
 import { IStaticsOracle } from "src/interfaces/IStaticsOracle.sol";
 import { OracleFeedTestMock, OracleTokenTestMock } from "test/mocks/OracleTestMocks.sol";
@@ -17,15 +21,17 @@ import { OracleFeedTestMock, OracleTokenTestMock } from "test/mocks/OracleTestMo
 contract DeploymentScriptsTest is Test {
     DeployStaticsOracle internal deployer;
     DeployRobinhoodSequencerAvailabilityFeed internal sequencerDeployer;
+    DeployRobinhoodSequencerReporterL1 internal reporterDeployer;
     ConfigureStaticsOracle internal configurator;
 
     function setUp() external {
         deployer = new DeployStaticsOracle();
         sequencerDeployer = new DeployRobinhoodSequencerAvailabilityFeed();
+        reporterDeployer = new DeployRobinhoodSequencerReporterL1();
         configurator = new ConfigureStaticsOracle();
     }
 
-    function test_SequencerSignalDeploymentRequiresRobinhoodAndSafeQuorum() external {
+    function test_SequencerSignalDeploymentSeparatesL1AuthorityAndL2Feed() external {
         address[] memory observers = new address[](3);
         observers[0] = address(0x1000);
         observers[1] = address(0x2000);
@@ -33,23 +39,29 @@ contract DeploymentScriptsTest is Test {
 
         vm.chainId(1);
         vm.expectRevert(
-            abi.encodeWithSelector(RobinhoodSequencerAvailabilityFeed.WrongChain.selector, 4663, 1)
+            abi.encodeWithSelector(RobinhoodSequencerAvailabilityFeed.WrongChain.selector, 1)
         );
-        sequencerDeployer.deploy(address(this), observers, 2);
+        sequencerDeployer.deploy(address(this));
 
-        vm.chainId(4663);
+        vm.chainId(4_663);
         RobinhoodSequencerAvailabilityFeed feed =
-            sequencerDeployer.deploy(address(this), observers, 2);
-        assertEq(feed.owner(), address(this));
-        assertEq(feed.observers(), observers);
-        assertEq(feed.threshold(), 2);
+            sequencerDeployer.deploy(address(reporterDeployer));
+        assertEq(feed.l1Reporter(), address(reporterDeployer));
+        assertEq(feed.observerSetVersion(), 0);
 
+        vm.chainId(1);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodSequencerAvailabilityFeed.InvalidThreshold.selector, 1, 3
-            )
+            abi.encodeWithSelector(RobinhoodSequencerReporterL1.InvalidThreshold.selector, 1, 3)
         );
-        sequencerDeployer.deploy(address(this), observers, 1);
+        reporterDeployer.deploy(
+            address(this), observers, 1, address(this), 200_000, 400_000, 1 gwei
+        );
+
+        RobinhoodSequencerReporterL1 reporter = reporterDeployer.deploy(
+            address(this), observers, 2, address(this), 200_000, 400_000, 1 gwei
+        );
+        assertEq(reporter.owner(), address(this));
+        assertEq(reporter.childChainId(), 4_663);
     }
 
     function test_DeploymentRequiresRobinhoodAndExplicitOwner() external {
