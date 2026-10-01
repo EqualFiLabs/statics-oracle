@@ -9,6 +9,7 @@ import {
   normalizeHeartbeat,
   normalizeStatusReport,
   validateHeartbeat,
+  validateObservedHeads,
   validateStatusReport,
 } from "../src/shared.mjs";
 
@@ -68,6 +69,17 @@ test("rejects disagreement and overlong leases", () => {
   const overlong = validHeartbeatInput();
   overlong.heartbeat.validUntil += 1n;
   assert.throws(() => validateHeartbeat(overlong), /too long/);
+});
+
+test("rejects future-dated heads before local recovery", () => {
+  const input = validHeartbeatInput();
+  input.directHead.timestamp = now + 16n;
+  input.directReferenceBlock.timestamp = now + 16n;
+  assert.throws(() => validateObservedHeads(input), /future/);
+
+  const referenceFuture = validHeartbeatInput();
+  referenceFuture.referenceHead.timestamp = now + 16n;
+  assert.throws(() => validateObservedHeads(referenceFuture), /future/);
 });
 
 test("status report must match confirmed local state and next L1 sequence", () => {

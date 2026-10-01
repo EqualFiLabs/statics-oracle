@@ -21,6 +21,7 @@ import {
   requireEnv,
   serializeBigInts,
   validateHeartbeat,
+  validateObservedHeads,
   validateStatusReport,
 } from "./shared.mjs";
 
@@ -81,11 +82,7 @@ async function sampleAvailability() {
     const directReferenceBlock = await waitForBlock(robinhoodRpcUrl, directHead.number);
     const referenceHead = await getBlock(robinhoodRpcUrl);
     const now = BigInt(Math.floor(Date.now() / 1_000));
-    if (referenceHead.number < directHead.number) throw new Error("reference RPC lags direct feed");
-    if (directReferenceBlock.hash !== directHead.hash) throw new Error("direct feed and RPC disagree");
-    if (now - directHead.timestamp > 60n || now - referenceHead.timestamp > 60n) {
-      throw new Error("observed head is stale");
-    }
+    validateObservedHeads({ directHead, referenceHead, directReferenceBlock, now });
     lastSample = { directHead, directReferenceBlock, referenceHead };
     tracker.record(true);
   } catch (error) {

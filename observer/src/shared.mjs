@@ -104,6 +104,15 @@ export function validateHeartbeat({
   if (heartbeat.observerSetVersion === 0n) throw new Error("observer set is not initialized");
   if (heartbeat.observedBlockNumber > directHead.number) throw new Error("proposed block is ahead of the sequencer feed");
   if (heartbeat.observedBlockNumber >= referenceHead.number) throw new Error("proposed block is not behind the reference head");
+  validateObservedHeads({ directHead, referenceHead, directReferenceBlock, now });
+  if (referenceBlock.number !== heartbeat.observedBlockNumber || referenceBlock.hash !== heartbeat.observedBlockHash) {
+    throw new Error("reference RPC does not agree with the proposal");
+  }
+  if (heartbeat.validUntil <= now) throw new Error("proposed lease is expired");
+  if (heartbeat.validUntil > now + LEASE_SECONDS) throw new Error("proposed lease is too long");
+}
+
+export function validateObservedHeads({ directHead, referenceHead, directReferenceBlock, now }) {
   if (referenceHead.number < directHead.number) throw new Error("reference RPC has not reached the sequencer-feed head");
   if (now - directHead.timestamp > MAX_HEAD_AGE_SECONDS) throw new Error("direct sequencer-feed head is stale");
   if (now - referenceHead.timestamp > MAX_HEAD_AGE_SECONDS) throw new Error("reference RPC head is stale");
@@ -111,11 +120,6 @@ export function validateHeartbeat({
   if (directReferenceBlock.number !== directHead.number || directReferenceBlock.hash !== directHead.hash) {
     throw new Error("sequencer feed and reference RPC disagree");
   }
-  if (referenceBlock.number !== heartbeat.observedBlockNumber || referenceBlock.hash !== heartbeat.observedBlockHash) {
-    throw new Error("reference RPC does not agree with the proposal");
-  }
-  if (heartbeat.validUntil <= now) throw new Error("proposed lease is expired");
-  if (heartbeat.validUntil > now + LEASE_SECONDS) throw new Error("proposed lease is too long");
 }
 
 export function validateStatusReport({ report, version, sequence, currentHealthy, localState, now }) {
