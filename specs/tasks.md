@@ -252,6 +252,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
 
   - [x] 6.5 Implement independent observer and coordinator services
     - Require every signer to check the direct sequencer feed against an independent RPC view.
+    - Require observers and coordinators to suppress heartbeats while L2 configuration or status trails L1.
     - Require three consecutive failures for impairment and three successes for recovery.
     - Poll every 30 seconds, renew L2 every five minutes, and verify recovered signers.
     - _Requirements: 7.2-7.4, 7.7_

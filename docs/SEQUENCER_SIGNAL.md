@@ -81,14 +81,16 @@ The observer exposes:
 
 It refuses to sign while unknown, rejects proposals that disagree with local state, and checks
 the current onchain observer-set version and status sequence immediately before signing. Every
-heartbeat includes both values in its EIP-712 payload.
+heartbeat includes both values in its EIP-712 payload. Observers also compare L2 against the
+authoritative L1 reporter and refuse heartbeat signatures while either value is behind L1.
 
 The coordinator polls every 30 seconds. It gathers status signatures when the L1 state differs
 from observer consensus and gathers heartbeat signatures when ten minutes or less remain. It
 also renews immediately when the accepted heartbeat belongs to an earlier status sequence. It
-recovers and sorts authorized signers, simulates each contract call, submits one transaction, and
-waits for the receipt. A backup coordinator can use `RELAYER_ROLE=backup` and a delay so it acts
-only if the primary update is still absent.
+suppresses renewal while the L2 observer-set version or status sequence is behind L1. It recovers
+and sorts authorized signers, simulates each contract call, submits one transaction, and waits for
+the receipt. A backup coordinator can use `RELAYER_ROLE=backup` and a delay so it acts only if the
+primary update is still absent.
 
 Install and test:
 

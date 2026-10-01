@@ -125,6 +125,18 @@ export function validateObservedHeads({ directHead, referenceHead, directReferen
   }
 }
 
+export function validateCrossChainState({
+  l1ObserverSetVersion,
+  l1StatusSequence,
+  l2ObserverSetVersion,
+  l2StatusSequence,
+}) {
+  if (l2ObserverSetVersion !== l1ObserverSetVersion) {
+    throw new Error("L2 observer set version is behind L1");
+  }
+  if (l2StatusSequence !== l1StatusSequence) throw new Error("L2 status sequence is behind L1");
+}
+
 export function validateStatusReport({ report, version, sequence, currentHealthy, localState, now }) {
   if (localState === ObserverState.UNKNOWN) throw new Error("observer state is unknown");
   if (report.observerSetVersion !== version) throw new Error("observer set version changed");

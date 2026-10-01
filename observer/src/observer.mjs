@@ -20,6 +20,7 @@ import {
   parsePrivateKey,
   requireEnv,
   serializeBigInts,
+  validateCrossChainState,
   validateHeartbeat,
   validateObservedHeads,
   validateStatusReport,
@@ -93,13 +94,27 @@ async function sampleAvailability() {
 async function signHeartbeat(rawHeartbeat) {
   if (tracker.state !== ObserverState.HEALTHY || !lastSample) throw new Error("observer is not healthy");
   const heartbeat = normalizeHeartbeat(rawHeartbeat);
-  const [version, statusSequence, lastBlock, authorized] = await Promise.all([
-    l2Client.readContract({ address: feedAddress, abi: feedAbi, functionName: "observerSetVersion" }),
-    l2Client.readContract({ address: feedAddress, abi: feedAbi, functionName: "statusSequence" }),
-    l2Client.readContract({ address: feedAddress, abi: feedAbi, functionName: "lastObservedBlockNumber" }),
-    l2Client.readContract({ address: feedAddress, abi: feedAbi, functionName: "isObserver", args: [account.address] }),
-  ]);
+  const [version, statusSequence, lastBlock, authorized, l1Version, l1StatusSequence] =
+    await Promise.all([
+      l2Client.readContract({ address: feedAddress, abi: feedAbi, functionName: "observerSetVersion" }),
+      l2Client.readContract({ address: feedAddress, abi: feedAbi, functionName: "statusSequence" }),
+      l2Client.readContract({ address: feedAddress, abi: feedAbi, functionName: "lastObservedBlockNumber" }),
+      l2Client.readContract({
+        address: feedAddress,
+        abi: feedAbi,
+        functionName: "isObserver",
+        args: [account.address],
+      }),
+      l1Client.readContract({ address: reporterAddress, abi: reporterAbi, functionName: "observerSetVersion" }),
+      l1Client.readContract({ address: reporterAddress, abi: reporterAbi, functionName: "statusSequence" }),
+    ]);
   if (!authorized) throw new Error("signing key is not in the L2 observer set");
+  validateCrossChainState({
+    l1ObserverSetVersion: l1Version,
+    l1StatusSequence,
+    l2ObserverSetVersion: version,
+    l2StatusSequence: statusSequence,
+  });
   if (heartbeat.observedBlockNumber <= lastBlock || heartbeat.observedBlockNumber < lastSignedBlock) {
     throw new Error("proposed block is not newer");
   }

@@ -29,6 +29,7 @@ import {
   parsePrivateKey,
   requireEnv,
   serializeBigInts,
+  validateCrossChainState,
   validateHeartbeat,
 } from "./shared.mjs";
 
@@ -171,6 +172,8 @@ async function renewHeartbeat() {
     threshold,
     observers,
     directHead,
+    l1Version,
+    l1StatusSequence,
   ] = await Promise.all([
     l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "observerSetVersion" }),
     l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "statusSequence" }),
@@ -180,7 +183,15 @@ async function renewHeartbeat() {
     l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "threshold" }),
     l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "observers" }),
     readSequencerFeedHead(directFeedUrl),
+    l1Public.readContract({ address: reporterAddress, abi: reporterAbi, functionName: "observerSetVersion" }),
+    l1Public.readContract({ address: reporterAddress, abi: reporterAbi, functionName: "statusSequence" }),
   ]);
+  validateCrossChainState({
+    l1ObserverSetVersion: l1Version,
+    l1StatusSequence,
+    l2ObserverSetVersion: version,
+    l2StatusSequence: statusSequence,
+  });
   const now = BigInt(Math.floor(Date.now() / 1_000));
   if (!heartbeatDue(healthyUntil, heartbeatStatusSequence, statusSequence, now)) return;
   if (directHead.number === 0n) throw new Error("sequencer feed returned genesis");

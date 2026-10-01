@@ -8,6 +8,7 @@ import {
   heartbeatDue,
   normalizeHeartbeat,
   normalizeStatusReport,
+  validateCrossChainState,
   validateHeartbeat,
   validateObservedHeads,
   validateStatusReport,
@@ -121,4 +122,22 @@ test("heartbeat renewal becomes due with ten minutes remaining", () => {
 
 test("heartbeat renewal is immediately due after a status sequence change", () => {
   assert.equal(heartbeatDue(now + LEASE_SECONDS, 8n, 9n, now), true);
+});
+
+test("heartbeat renewal requires L2 configuration and status to match L1", () => {
+  const state = {
+    l1ObserverSetVersion: 4n,
+    l1StatusSequence: 9n,
+    l2ObserverSetVersion: 4n,
+    l2StatusSequence: 9n,
+  };
+  assert.doesNotThrow(() => validateCrossChainState(state));
+  assert.throws(
+    () => validateCrossChainState({ ...state, l2ObserverSetVersion: 3n }),
+    /observer set version is behind/,
+  );
+  assert.throws(
+    () => validateCrossChainState({ ...state, l2StatusSequence: 8n }),
+    /status sequence is behind/,
+  );
 });
