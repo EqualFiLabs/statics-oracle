@@ -1046,23 +1046,27 @@ During the coordinated corporate-action window, `oraclePaused()` causes strict S
 
 ## Evaluation
 
-The self-managed feed uses the Chainlink uptime-feed response convention:
+The self-managed hybrid feed uses the Chainlink uptime-feed response convention:
 
 ```text
 0 = up
 1 = down
 ```
 
-The feed is explicitly an observed-availability signal, not a Chainlink-managed feed and not
-proof that every user can submit a transaction. At least three independent observers verify
-fresh direct sequencer-feed progress against an independent RPC view. A strict
-majority signs an EIP-712 observation. Any relayer may submit the sorted quorum signatures.
+The feed is explicitly a self-managed availability signal, not a Chainlink-managed feed and not
+proof that every user can submit a transaction. At least three independent observers sample the
+direct sequencer feed and an independent RPC every 30 seconds. Each requires three consecutive
+failures before impairment and three consecutive successes before health or recovery.
 
-Each renewal creates a healthy lease of at most 95 seconds. With a 30-second polling interval,
-three consecutive failed rounds leave no valid renewal and the read surface reports down. This
-transition requires no transaction. The onchain contract also verifies the signed block hash
-against `blockhash`, rejects current or old blocks, and invalidates the lease on observer-set
-rotation.
+A strict majority signs only status transitions. One relayer submits the transition to an
+Ethereum reporter, which validates EIP-712 quorum and creates a retryable ticket to Robinhood.
+The Ethereum Safe is the only observer-set authority. Observer rotation immediately records an
+impaired state and queues the new configuration.
+
+Observers also sign a direct Robinhood heartbeat every five minutes. Each heartbeat creates a
+lease of at most 15 minutes. The L2 feed is healthy only when the latest L1 state is healthy and
+the lease is active. Lease expiry requires no transaction. The L2 contract verifies the signed
+block hash against `blockhash`, rejects current or old blocks, and exposes a diagnostic reason.
 
 When down: `SEQUENCER_DOWN`.
 
@@ -1109,6 +1113,13 @@ Suggested schema:
   },
   "sequencer": {
     "feed": null,
+    "l1Reporter": null,
+    "l1Inbox": "0x1A07cc4BD17E0118BdB54D70990D2158AbAD7a2D",
+    "observerSetHash": null,
+    "threshold": null,
+    "pollIntervalSeconds": 30,
+    "heartbeatIntervalSeconds": 300,
+    "leaseSeconds": 900,
     "gracePeriod": 0,
     "verified": false
   },
@@ -1252,7 +1263,7 @@ test/
 flowchart TD
     A[Generate whitelist manifest]
     B[Review token/feed matrix]
-    C[Review and deploy observed sequencer feed]
+    C[Review and deploy hybrid sequencer signal]
     D[Run live verifier]
     E[Deploy StaticsOracle]
     F[Configure sequencer]
@@ -1567,7 +1578,7 @@ The system trusts:
 2. Chainlink's published answer,
 3. Robinhood's `oraclePaused()` signal for configured Stock Tokens,
 4. a strict majority of the configured sequencer observers,
-5. the feed owner for observer-set rotation,
+5. the Ethereum Safe for observer-set rotation and retryable configuration,
 6. the administrator controlling whitelist configuration.
 
 The system does not trust:

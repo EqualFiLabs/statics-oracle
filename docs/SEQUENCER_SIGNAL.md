@@ -1,104 +1,92 @@
 # Robinhood Sequencer Availability Signal
 
-This repository provides a reusable observed-availability signal for Robinhood Chain. It is
-designed for any Robinhood application that can consume the Chainlink
-`AggregatorV3Interface` uptime convention:
+This repository provides a reusable, self-managed availability signal for Robinhood Chain.
+Consumers use the Chainlink uptime-feed convention:
 
 ```text
-answer = 0: quorum recently observed healthy block production
-answer = 1: no active quorum-backed healthy lease
+answer = 0: healthy
+answer = 1: unavailable
 ```
 
-The signal is self-managed. It is not operated by Chainlink, is not a canonical Robinhood
-feed, and does not prove that every account or transaction can reach the sequencer.
+The signal is not operated by Chainlink or Robinhood and does not prove transaction inclusion.
+It combines two independent safety properties:
+
+1. Ethereum records quorum-attested status transitions in canonical L1 order.
+2. Robinhood requires a renewable heartbeat lease to prove that the observer and relay path is live.
+
+The L2 feed reports healthy only while both properties are true.
 
 ## Failure model
 
-At least three independent observer operators are required. The onchain threshold must be a
-strict majority. Each observer uses its own:
+Each observer samples Robinhood's direct sequencer WebSocket and an independent Robinhood RPC
+every 30 seconds. A new process starts in `UNKNOWN`. Three consecutive successful samples move
+it to `HEALTHY`; three consecutive failures move it to `IMPAIRED`; and recovery requires three
+new consecutive successes.
 
-- direct Robinhood sequencer-feed connection;
-- independent Robinhood RPC connection;
-- EIP-712 signing key; and
-- host, network, and monitoring stack.
+At least three independently operated observers are required. The threshold must be a strict
+majority. Each operator uses a separate host, network path, RPC provider, and EIP-712 key.
 
-Every 30 seconds, a coordinator proposes a recent block behind the direct feed head. Each
-observer independently receives a fresh message from Robinhood's sequencer feed, verifies that
-feed block against its independent RPC, and checks the proposed block through the independent
-RPC. The observer signs only if both sources are recent and consistent, the observer is still
-in the onchain set, and the proposed lease is safe.
+When a quorum's confirmed state differs from Ethereum, observers sign one transition report.
+Any relayer may submit that report to `RobinhoodSequencerReporterL1`. The reporter validates
+membership, ordering, freshness, and quorum, then creates an Arbitrum retryable ticket to the
+Robinhood feed. The reporter is prefunded, so the submitting relayer pays only L1 transaction
+gas while the reporter pays the retryable submission and L2 execution fee.
 
-[Robinhood documents the direct feed](https://docs.robinhood.com/chain/connecting/) as
-`wss://feed.mainnet.chain.robinhood.com`. This is distinct from the HTTPS sequencer transaction
-submission endpoint. The observer checks feed-message progression and confirms the feed's block
-hash through its independent RPC.
+While observers are healthy, they also sign an L2 heartbeat every five minutes. Each accepted
+heartbeat lasts at most 15 minutes. If signing, coordination, RPC access, or L2 relay stops, the
+lease expires without a marking transaction.
 
-Any coordinator can collect the signatures and relay them. The relayer is not trusted for
-safety. The contract independently verifies signer authorization, strict-majority quorum,
-signature uniqueness and order, observer-set version, the recent block hash, and the lease
-limit.
+If Robinhood block production freezes, its timestamp cannot advance and no Robinhood contract
+can act during the freeze. Ethereum can still record the impairment. When Robinhood resumes,
+the queued L1 impairment arrives and the old heartbeat is expired. The consumer's recovery
+grace starts only after a later effective recovery on L2.
 
-An accepted observation grants a healthy lease for at most 95 seconds. With 30-second polls,
-failed rounds at approximately 30, 60, and 90 seconds leave the lease to expire at 95 seconds.
-No transaction is needed to change the read result from up to down.
+## Contracts
 
-The contract accepts observations no more than 240 blocks behind the submission block. This
-stays inside the EVM's 256-block `blockhash` window and allows roughly 24 seconds at the
-observed September 2026 Robinhood cadence of about 10 blocks per second. Operators must alert
-before signing and relay latency approaches that limit.
+`RobinhoodSequencerReporterL1.sol` is deployed on Ethereum Mainnet or Sepolia. It:
 
-If block production stops completely, the chain timestamp also stops. No onchain mechanism
-can record or act on the outage while the chain is frozen. On the first block after recovery,
-the old lease is expired. The signal reports down until a new quorum observation is submitted,
-then consumers enforce their configured recovery grace period. This prevents a protocol action
-from using the last pre-outage healthy state during recovery.
+- owns the authoritative observer set;
+- accepts only fresh, transition-only, sequential quorum reports;
+- starts impaired and fails closed during observer rotation;
+- creates retryable tickets through the chain-specific delayed inbox;
+- can requeue the latest status or configuration through Safe-only functions;
+- has explicit retryable gas and refund configuration; and
+- disables ownership renunciation.
 
-## Components
+`RobinhoodSequencerAvailabilityFeed.sol` is deployed on Robinhood Mainnet or Testnet. It:
 
-`RobinhoodSequencerAvailabilityFeed.sol` is the non-upgradeable feed contract. It exposes:
+- has no owner or independent administration;
+- accepts configuration and status only from the aliased L1 reporter;
+- ignores duplicate or stale cross-chain messages and rejects sequence gaps;
+- verifies sorted heartbeat signatures and recent canonical block hashes;
+- expires heartbeats after at most 15 minutes; and
+- exposes `UNINITIALIZED`, `HEALTHY`, `L1_REPORTED_IMPAIRED`, or `LEASE_EXPIRED` diagnostics.
 
-- `latestRoundData()` with the standard uptime answer convention;
-- `healthyUntil`, `recoveredAt`, and last-observation diagnostics;
-- a permissionless `submitObservation` relay path;
-- two-step ownership and observer rotation; and
-- automatic lease invalidation when the observer set changes.
+Supported pairs are:
 
-`observer/src/observer.mjs` is the signing service. It exposes:
+| Ethereum parent | Robinhood child | Delayed Inbox |
+| --- | --- | --- |
+| Mainnet `1` | Mainnet `4663` | `0x1A07cc4BD17E0118BdB54D70990D2158AbAD7a2D` |
+| Sepolia `11155111` | Testnet `46630` | `0xF2939afA86F6f933A3CE17fCAB007907B6b0B7a4` |
 
-- `GET /health`; and
-- `POST /observe` with `{ "observation": ... }`.
+## Service operation
 
-`observer/src/coordinator.mjs` polls every 30 seconds, requests signatures, verifies recovered
-signers against the onchain set, sorts the quorum, simulates the submission, and relays it.
-Multiple coordinators may run concurrently because submission is permissionless.
+The observer exposes:
 
-## Deployment policy
+- `GET /health`, including state and consecutive sample counters;
+- `POST /status` for an L1 status proposal; and
+- `POST /heartbeat` for an L2 heartbeat proposal.
 
-Deployment is intentionally separate from implementation. Do not configure Statics or another
-consumer until all of the following are reviewed:
+It refuses to sign while unknown, rejects proposals that disagree with local state, and checks
+the current onchain version and sequence immediately before signing.
 
-1. Contract bytecode matches the reviewed source and was deployed on chain ID `4663`.
-2. Owner is a reviewed Safe or equivalent controlled account.
-3. Observer addresses are sorted, independently operated, and use separate keys.
-4. Threshold is a strict majority. The minimum supported configuration is 2 of 3.
-5. Every operator uses genuinely independent RPC infrastructure.
-6. Alerting and replacement procedures have been exercised.
-7. The consuming protocol's post-recovery grace period has been selected.
+The coordinator polls every 30 seconds. It gathers status signatures when the L1 state differs
+from observer consensus and gathers heartbeat signatures when ten minutes or less remain. It
+recovers and sorts authorized signers, simulates each contract call, submits one transaction,
+and waits for the receipt. A backup coordinator can use `RELAYER_ROLE=backup` and a delay so it
+acts only if the primary update is still absent.
 
-The deployment helper reads these variables:
-
-```text
-SEQUENCER_SIGNAL_OWNER
-SEQUENCER_SIGNAL_OBSERVERS      comma-separated, ascending address order
-SEQUENCER_SIGNAL_THRESHOLD
-```
-
-Run the normal Foundry simulation and bytecode review before any broadcast. The repository does
-not contain or create deployment keys.
-
-## Observer operation
-
-Install and test the service:
+Install and test:
 
 ```bash
 cd observer
@@ -107,55 +95,67 @@ npm run check
 npm test
 ```
 
-Copy `.env.example` into the operator's secret-management system. Do not commit `.env`, RPC
-URLs, observer keys, or relayer keys. Start one observer per independent operator:
+Copy `.env.example` into secret management. Never commit observer keys, relayer keys, or RPC
+URLs.
 
-```bash
-node src/observer.mjs
+## Deployment sequence
+
+Deployment is not part of repository implementation. Before broadcast:
+
+1. Review bytecode, observer operators, threshold, Safe, refund address, and gas limits.
+2. Deploy and fund the L1 reporter on Ethereum.
+3. Deploy the L2 feed with the reporter address.
+4. Call `initializeL2Feed` on the reporter, which queues the initial impaired configuration.
+5. Confirm the configuration retryable is redeemed on Robinhood.
+6. Start observers and wait for three successful samples on each required signer.
+7. Start the primary coordinator and at least one delayed backup.
+8. Confirm the L1 healthy transition, its L2 redemption, and an accepted heartbeat.
+9. Configure Statics only after independent review and a chosen recovery grace period.
+
+The L1 deployment script requires:
+
+```text
+SEQUENCER_SIGNAL_OWNER
+SEQUENCER_SIGNAL_OBSERVERS
+SEQUENCER_SIGNAL_THRESHOLD
+SEQUENCER_L2_REFUND_ADDRESS
+SEQUENCER_STATUS_GAS_LIMIT
+SEQUENCER_CONFIGURATION_GAS_LIMIT
+SEQUENCER_L2_GAS_PRICE_BID
 ```
 
-Start one or more replaceable coordinators:
-
-```bash
-node src/coordinator.mjs
-```
-
-Place observer endpoints behind TLS, request-size limits, and rate limiting. Network access may
-be restricted to known coordinators as a denial-of-service precaution, but safety must not
-depend on that restriction. An observer validates every proposal before signing.
+The L2 deployment script requires `SEQUENCER_L1_REPORTER`.
 
 ## Monitoring
 
 Alert on:
 
-- `healthyUntil - current chain timestamp` below 60 seconds;
-- two consecutive failed coordinator rounds;
-- any expired lease;
-- direct and reference RPC hash disagreement;
-- stale or future-dated RPC heads;
-- observer-set or ownership changes;
-- signer authorization failures; and
-- a recovery observation, which starts the consumer grace period.
+- observer state disagreement or missing quorum;
+- three-failure impairment or three-success recovery;
+- retryable creation, redemption failure, expiry, or manual requeue;
+- L1 and L2 observer-set or status-sequence lag;
+- reporter balance below four quoted messages;
+- heartbeat time remaining below ten minutes and urgently below five minutes;
+- any availability reason change;
+- direct feed and RPC hash disagreement;
+- stale or future-dated heads; and
+- ownership, gas configuration, refund address, or observer-set changes.
 
-Monitor each observer independently. A green coordinator alone is not evidence that independent
-observers or independent RPC paths are healthy.
+## Incident response
 
-## Rotation and incident response
+Observer rotation is a Safe action on L1. It immediately records an impaired state, increments
+the status sequence, replaces the observer set, and queues the new configuration. Do not lower
+the threshold to preserve liveness. Prepare new operators first, rotate, confirm L2 redemption,
+then re-establish health through three successful samples and a new transition.
 
-`setObserverSet` invalidates an active healthy lease immediately. Prepare the new operators and
-coordinator configuration before rotation, execute the owner transaction, then obtain a new
-quorum observation. Consumers will remain unavailable throughout their recovery grace period.
-
-If an observer key may be compromised, rotate the complete reviewed set. Do not lower the
-threshold to preserve liveness. If the owner is compromised, consumers should remove or replace
-the feed according to their own governance process.
+If a retryable is not redeemed, the Safe can requeue the latest configuration or status after
+funding and gas parameters are checked. These methods are not public because arbitrary retries
+could drain the prefunded reporter.
 
 ## Known limits
 
-- The signal observes block production and agreement, not transaction inclusion fairness.
-- A strict-majority observer compromise can falsely renew health for a block the contract sees.
-- The owner can replace the observer set and is therefore part of the trust boundary.
-- Shared hosting, DNS, RPC providers, or key custody can turn nominally separate observers into
-  one failure domain.
-- A frozen chain cannot advance its own time or execute a down-marking transaction. Safety is
-  enforced when block production resumes.
+- The signal observes production and agreement, not inclusion fairness.
+- A strict-majority observer compromise can falsely report status or renew a heartbeat.
+- The Ethereum Safe controls observer membership and retryable configuration.
+- Shared hosting, DNS, RPC, or custody can collapse nominally independent failure domains.
+- A frozen L2 cannot advance time or execute a local down-marking transaction.

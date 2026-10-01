@@ -51,12 +51,11 @@ checks. Never commit RPC URLs, credentials, or signer material.
 ## Production release gates
 
 Robinhood does not currently publish a canonical onchain uptime-feed proxy. This repository
-therefore includes a self-managed, Chainlink-interface-compatible observed-availability feed.
-It is not a Chainlink feed and does not prove universal transaction inclusion. A strict
-majority of independent observers must agree on fresh Robinhood sequencer-feed progress and a
-recent block seen through an independent RPC view. If renewals stop, its 95-second healthy lease
-reports expired as soon as chain time reaches the deadline, without requiring a marking
-transaction. Production use still requires deployment,
+therefore includes a self-managed, Chainlink-interface-compatible signal. It is not a Chainlink
+feed and does not prove universal transaction inclusion. Quorum status transitions are recorded
+on Ethereum and delivered to Robinhood through retryable tickets. A separate Robinhood heartbeat
+renews every five minutes and expires after 15 minutes. The feed reports healthy only when the
+latest L1 state is healthy and the L2 lease is active. Production use still requires deployment,
 independent operators, key custody, monitoring, and an explicitly reviewed recovery grace
 period. See [Sequencer signal operations](docs/SEQUENCER_SIGNAL.md).
 Asset-specific feed heartbeats and `maxAge` policies must likewise be sourced and reviewed
@@ -64,10 +63,11 @@ before an asset is enabled; placeholder safety parameters are not acceptable.
 
 ## Sequencer signal development
 
-The `observer/` package contains two separately deployable processes: an observer that signs
-only after checking the direct sequencer feed against an independent RPC, and a permissionless
-coordinator that gathers quorum and relays the observation. Three independent observers with a
-two-signature threshold are the minimum supported set.
+The `observer/` package contains separately deployable observers and coordinators. Each observer
+samples the direct sequencer feed and an independent RPC every 30 seconds. Three consecutive
+failures mark it impaired and three consecutive successes establish or restore health. The
+coordinator relays transition reports on Ethereum and heartbeat renewals on Robinhood. Three
+independent observers with a two-signature threshold are the minimum supported set.
 
 ```bash
 cd observer

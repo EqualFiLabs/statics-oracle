@@ -169,13 +169,17 @@ An asset whose token/feed pair has been identified but SHALL NOT become enabled 
 #### Acceptance Criteria
 
 1. BEFORE production enablement, THE configured Robinhood sequencer signal contract, observer set, threshold, and recovery policy SHALL be independently reviewed.
-2. THE observed-availability feed SHALL require a strict majority of at least three independent observers.
-3. EACH observer SHALL verify fresh progress from Robinhood's direct sequencer feed against an independent RPC view before signing a recent block observation.
-4. THE observed-availability feed SHALL become unavailable automatically when quorum renewals stop, without requiring a transaction to mark the sequencer down.
-5. WHEN the configured sequencer feed reports that the sequencer is down, THE Oracle System SHALL treat external prices as unavailable for protected state-changing operations.
-6. WHEN the sequencer has recently recovered, THE Oracle System SHALL enforce a configured recovery grace period before treating prices as live.
-7. THE Oracle System SHALL NOT describe the self-managed observed-availability signal as a canonical or Chainlink-managed uptime feed.
-8. IF sequencer protection is required but its configuration is missing, expired, or invalid, THEN protected state-changing price reads SHALL fail closed.
+2. THE signal SHALL require a strict majority of at least three independent observers, with observer membership controlled only by an Ethereum Safe.
+3. EACH observer SHALL sample fresh progress from Robinhood's direct sequencer feed against an independent RPC view every 30 seconds.
+4. EACH observer SHALL require three consecutive failures before reporting impairment and three consecutive successes before reporting health or recovery.
+5. QUORUM-ATTESTED status transitions SHALL be ordered on Ethereum and delivered to Robinhood through the canonical delayed inbox.
+6. THE Robinhood feed SHALL require a quorum heartbeat at least every 15 minutes, with a target renewal cadence of five minutes.
+7. THE observed-availability feed SHALL become unavailable automatically when the heartbeat lease expires, without requiring a transaction to mark the sequencer down.
+8. WHEN the configured sequencer feed reports that the sequencer is down, THE Oracle System SHALL treat external prices as unavailable for protected state-changing operations.
+9. WHEN the sequencer has recently recovered, THE Oracle System SHALL enforce a configured recovery grace period before treating prices as live.
+10. THE Oracle System SHALL NOT describe the self-managed observed-availability signal as a canonical or Chainlink-managed uptime feed.
+11. IF sequencer protection is required but its configuration is missing, expired, invalid, or behind the L1 status, THEN protected state-changing price reads SHALL fail closed.
+12. THE L2 feed SHALL expose `UNINITIALIZED`, `HEALTHY`, `L1_REPORTED_IMPAIRED`, and `LEASE_EXPIRED` diagnostic reasons.
 
 ---
 
@@ -279,7 +283,7 @@ An asset whose token/feed pair has been identified but SHALL NOT become enabled 
 7. TESTS SHALL cover zero, negative, incomplete, stale, and paused oracle results.
 8. TESTS SHALL cover unsupported and disabled assets.
 9. TESTS SHALL cover incorrect token/feed bindings.
-10. TESTS SHALL cover sequencer-down and sequencer-recovery behavior once the canonical sequencer feed is configured.
+10. TESTS SHALL cover sequencer-down and sequencer-recovery behavior once the reviewed hybrid signal is configured.
 11. TESTS SHALL cover multi-asset Basket NAV calculation using assets with different token and feed decimal configurations.
 
 ---

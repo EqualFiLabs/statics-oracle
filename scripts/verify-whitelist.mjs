@@ -205,7 +205,7 @@ async function main() {
     reviewWarnings.push(`${row.symbol} remains CANDIDATE pending wrapper provenance, liquidity, and risk review`);
   }
   if (manifest.sequencer?.verified !== true || !manifest.sequencer?.feed) {
-    reviewWarnings.push("observed sequencer feed deployment and recovery grace policy remain unresolved");
+    reviewWarnings.push("hybrid sequencer deployment and recovery grace policy remain unresolved");
   }
 
   const manifestBytesAfter = readFileSync(options.manifest);

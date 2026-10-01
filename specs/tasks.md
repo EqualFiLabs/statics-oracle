@@ -235,28 +235,29 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - nonzero = unavailable.
     - _Requirements: 7.2, 7.3, 12.7, 12.8_
 
-  - [x] 6.3 Add release gate for observed sequencer feed
+  - [x] 6.3 Add release gate for the hybrid sequencer signal
     - Do NOT add a guessed or placeholder uptime-feed address.
     - Keep manifest sequencer state unverified until the threshold feed is deployed and reviewed.
     - Mainnet production enablement SHALL verify bytecode, observer set, threshold, owner, and policy.
     - _Requirements: 7.1, 7.4, 7.5_
 
-  - [x] 6.4 Implement threshold observed-availability feed
-    - Require at least three observers and a strict-majority threshold.
-    - Verify sorted EIP-712 signatures and a recent canonical block hash onchain.
-    - Expire the healthy lease after at most 95 seconds without requiring a write.
-    - Invalidate the lease when the observer set changes.
+  - [x] 6.4 Implement hybrid L1 status and L2 heartbeat contracts
+    - Keep the authoritative observer set and transition ordering on Ethereum.
+    - Deliver configuration and status through chain-specific retryable tickets.
+    - Verify sorted EIP-712 heartbeat signatures and a recent canonical block hash on L2.
+    - Expire the L2 healthy lease after at most 15 minutes without requiring a write.
+    - Invalidate the lease and fail closed when the L1 observer set changes.
     - _Requirements: 7.1-7.8_
 
   - [x] 6.5 Implement independent observer and coordinator services
     - Require every signer to check the direct sequencer feed against an independent RPC view.
-    - Keep relay permissionless and verify recovered signers against the onchain set.
-    - Poll every 30 seconds and fail closed when quorum cannot be assembled.
+    - Require three consecutive failures for impairment and three successes for recovery.
+    - Poll every 30 seconds, renew L2 every five minutes, and verify recovered signers.
     - _Requirements: 7.2-7.4, 7.7_
 
   - [x] 6.6 Add signal deployment and integration tests
-    - Gate deployment to Robinhood Mainnet chain ID `4663`.
-    - Cover quorum, expiry, recovery, rotation, bad signatures, invalid blocks, and unsafe config.
+    - Support Ethereum Mainnet to Robinhood Mainnet and Sepolia to Robinhood Testnet.
+    - Cover L1 quorum, retryable funding, alias authorization, ordering, expiry, recovery, rotation, bad signatures, invalid blocks, and unsafe config.
     - Verify the feed against `StaticsOracle` recovery grace and a pinned Robinhood fork.
     - _Requirements: 7.1-7.8, 12.7, 12.8, 13.10_
 
@@ -734,7 +735,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - _Requirements: 3.1-3.9, 5.7, 11.1-11.7_
 
   - [ ] 22.3 Add production sequencer fork test after threshold feed deployment
-    - Blocked until the reviewed observed-availability feed is deployed on Robinhood Mainnet.
+    - Blocked until the reviewed L1 reporter and L2 feed are deployed and operational.
     - Do not block deterministic local testing on an undeployed address.
     - Once deployed, add it to the manifest, verify bytecode and configuration, and add fork coverage.
     - _Requirements: 7.1-7.5_
