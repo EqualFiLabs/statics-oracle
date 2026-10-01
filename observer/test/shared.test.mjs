@@ -115,6 +115,10 @@ test("status report must match confirmed local state and next L1 sequence", () =
 });
 
 test("heartbeat renewal becomes due with ten minutes remaining", () => {
-  assert.equal(heartbeatDue(now + 601n, now), false);
-  assert.equal(heartbeatDue(now + 600n, now), true);
+  assert.equal(heartbeatDue(now + 601n, 8n, 8n, now), false);
+  assert.equal(heartbeatDue(now + 600n, 8n, 8n, now), true);
+});
+
+test("heartbeat renewal is immediately due after a status sequence change", () => {
+  assert.equal(heartbeatDue(now + LEASE_SECONDS, 8n, 9n, now), true);
 });

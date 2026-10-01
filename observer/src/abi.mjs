@@ -2,6 +2,7 @@ export const feedAbi = [
   { type: "function", name: "l1Reporter", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
   { type: "function", name: "observerSetVersion", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
   { type: "function", name: "statusSequence", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
+  { type: "function", name: "lastHeartbeatStatusSequence", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
   { type: "function", name: "lastObservedBlockNumber", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
   { type: "function", name: "healthyUntil", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
   { type: "function", name: "threshold", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },

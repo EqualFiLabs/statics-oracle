@@ -85,9 +85,10 @@ heartbeat includes both values in its EIP-712 payload.
 
 The coordinator polls every 30 seconds. It gathers status signatures when the L1 state differs
 from observer consensus and gathers heartbeat signatures when ten minutes or less remain. It
-recovers and sorts authorized signers, simulates each contract call, submits one transaction,
-and waits for the receipt. A backup coordinator can use `RELAYER_ROLE=backup` and a delay so it
-acts only if the primary update is still absent.
+also renews immediately when the accepted heartbeat belongs to an earlier status sequence. It
+recovers and sorts authorized signers, simulates each contract call, submits one transaction, and
+waits for the receipt. A backup coordinator can use `RELAYER_ROLE=backup` and a delay so it acts
+only if the primary update is still absent.
 
 Install and test:
 

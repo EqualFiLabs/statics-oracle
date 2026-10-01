@@ -162,18 +162,27 @@ async function reconcileStatus() {
 }
 
 async function renewHeartbeat() {
-  const [version, statusSequence, lastBlock, healthyUntil, threshold, observers, directHead] =
-    await Promise.all([
-      l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "observerSetVersion" }),
-      l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "statusSequence" }),
-      l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "lastObservedBlockNumber" }),
-      l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "healthyUntil" }),
-      l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "threshold" }),
-      l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "observers" }),
-      readSequencerFeedHead(directFeedUrl),
-    ]);
+  const [
+    version,
+    statusSequence,
+    heartbeatStatusSequence,
+    lastBlock,
+    healthyUntil,
+    threshold,
+    observers,
+    directHead,
+  ] = await Promise.all([
+    l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "observerSetVersion" }),
+    l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "statusSequence" }),
+    l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "lastHeartbeatStatusSequence" }),
+    l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "lastObservedBlockNumber" }),
+    l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "healthyUntil" }),
+    l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "threshold" }),
+    l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "observers" }),
+    readSequencerFeedHead(directFeedUrl),
+  ]);
   const now = BigInt(Math.floor(Date.now() / 1_000));
-  if (!heartbeatDue(healthyUntil, now)) return;
+  if (!heartbeatDue(healthyUntil, heartbeatStatusSequence, statusSequence, now)) return;
   if (directHead.number === 0n) throw new Error("sequencer feed returned genesis");
   const targetBlock = directHead.number - 1n;
   if (targetBlock <= lastBlock) throw new Error("no newer mutually observable block");

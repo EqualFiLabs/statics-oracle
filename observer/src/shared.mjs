@@ -135,8 +135,9 @@ export function validateStatusReport({ report, version, sequence, currentHealthy
   if (report.validUntil <= now || report.validUntil > report.observedAt + 600n) throw new Error("status validity is invalid");
 }
 
-export function heartbeatDue(healthyUntil, now) {
-  return healthyUntil <= now + (LEASE_SECONDS - HEARTBEAT_INTERVAL_SECONDS);
+export function heartbeatDue(healthyUntil, heartbeatStatusSequence, currentStatusSequence, now) {
+  return heartbeatStatusSequence !== currentStatusSequence
+    || healthyUntil <= now + (LEASE_SECONDS - HEARTBEAT_INTERVAL_SECONDS);
 }
 
 export function requireEnv(name) {
