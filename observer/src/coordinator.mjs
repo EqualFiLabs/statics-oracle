@@ -230,7 +230,23 @@ async function renewHeartbeat() {
   });
   if (quorum.length < threshold) throw new Error(`heartbeat quorum unavailable: ${quorum.length}/${threshold}`);
   await maybeDelayBackup();
-  const latestUntil = await l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "healthyUntil" });
+  const [latestUntil, finalL2Version, finalL2StatusSequence, finalL1Version, finalL1StatusSequence] =
+    await Promise.all([
+      l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "healthyUntil" }),
+      l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "observerSetVersion" }),
+      l2Public.readContract({ address: feedAddress, abi: feedAbi, functionName: "statusSequence" }),
+      l1Public.readContract({ address: reporterAddress, abi: reporterAbi, functionName: "observerSetVersion" }),
+      l1Public.readContract({ address: reporterAddress, abi: reporterAbi, functionName: "statusSequence" }),
+    ]);
+  validateCrossChainState({
+    l1ObserverSetVersion: finalL1Version,
+    l1StatusSequence: finalL1StatusSequence,
+    l2ObserverSetVersion: finalL2Version,
+    l2StatusSequence: finalL2StatusSequence,
+  });
+  if (finalL2Version !== version || finalL2StatusSequence !== statusSequence) {
+    throw new Error("cross-chain state changed during heartbeat collection");
+  }
   if (latestUntil > healthyUntil) return;
   const args = [heartbeat, quorum.map((entry) => entry.signature)];
   const { request } = await l2Public.simulateContract({

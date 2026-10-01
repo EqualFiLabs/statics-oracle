@@ -88,9 +88,10 @@ The coordinator polls every 30 seconds. It gathers status signatures when the L1
 from observer consensus and gathers heartbeat signatures when ten minutes or less remain. It
 also renews immediately when the accepted heartbeat belongs to an earlier status sequence. It
 suppresses renewal while the L2 observer-set version or status sequence is behind L1. It recovers
-and sorts authorized signers, simulates each contract call, submits one transaction, and waits for
-the receipt. A backup coordinator can use `RELAYER_ROLE=backup` and a delay so it acts only if the
-primary update is still absent.
+and sorts authorized signers, then rechecks the L1 and L2 versions and sequences after quorum
+collection and any backup delay. It simulates each contract call, submits one transaction, and
+waits for the receipt. A backup coordinator can use `RELAYER_ROLE=backup` and a delay so it acts
+only if the primary update is still absent.
 
 Install and test:
 
