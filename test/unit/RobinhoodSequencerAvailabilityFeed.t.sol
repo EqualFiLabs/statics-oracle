@@ -164,6 +164,32 @@ contract RobinhoodSequencerAvailabilityFeedTest is Test {
         assertTrue(feed.l1Healthy());
     }
 
+    function test_HealthyStatusCatchUpInvalidatesLeaseAndRestartsRecovery() external {
+        _configure(1, 0);
+        _status(1, true);
+        RobinhoodSequencerAvailabilityFeed.Heartbeat memory first = _heartbeat(999, 15 minutes);
+        feed.submitHeartbeat(first, _sign(first, 2));
+        assertTrue(feed.isUp());
+
+        vm.warp(block.timestamp + 5 minutes);
+        vm.prank(aliasReporter);
+        feed.applyStatus(1, 3, true, uint64(block.timestamp));
+
+        assertEq(feed.statusSequence(), 3);
+        assertFalse(feed.isUp());
+        assertEq(feed.healthyUntil(), block.timestamp);
+        assertEq(uint8(feed.availabilityReason()), 3);
+
+        vm.roll(1_001);
+        RobinhoodSequencerAvailabilityFeed.Heartbeat memory recovery = _heartbeat(1_000, 15 minutes);
+        feed.submitHeartbeat(recovery, _sign(recovery, 2));
+        assertTrue(feed.isUp());
+        assertEq(feed.recoveredAt(), block.timestamp);
+        (, int256 answer, uint256 startedAt,,) = feed.latestRoundData();
+        assertEq(answer, 0);
+        assertEq(startedAt, block.timestamp);
+    }
+
     function test_HeartbeatRequiresQuorumCanonicalBlockAndBoundedLease() external {
         _configure(1, 0);
         _status(1, true);

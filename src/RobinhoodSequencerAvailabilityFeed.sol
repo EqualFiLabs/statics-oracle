@@ -101,6 +101,9 @@ contract RobinhoodSequencerAvailabilityFeed is IAggregatorV3, EIP712 {
         uint64 validUntil,
         bool effectiveHealthy
     );
+    event HealthyLeaseInvalidated(
+        uint64 previousHealthyUntil, uint64 invalidatedAt, uint64 indexed statusSequence
+    );
 
     modifier onlyAliasedL1Reporter() {
         if (msg.sender != aliasedL1Reporter) {
@@ -176,10 +179,16 @@ contract RobinhoodSequencerAvailabilityFeed is IAggregatorV3, EIP712 {
         }
         if (newStatusSequence <= statusSequence) return;
         _materializeExpiry();
+        bool skippedTransition = newStatusSequence > statusSequence + 1;
         statusSequence = newStatusSequence;
         l1Healthy = newHealthy;
         l1ObservedAt = observedAt;
         l1ReceivedAt = block.timestamp.toUint64();
+        if (skippedTransition && newHealthy) {
+            uint64 previousHealthyUntil = healthyUntil;
+            healthyUntil = l1ReceivedAt;
+            emit HealthyLeaseInvalidated(previousHealthyUntil, l1ReceivedAt, newStatusSequence);
+        }
         _recordAfterMutation();
         emit L1StatusApplied(
             reportObserverSetVersion, newStatusSequence, newHealthy, observedAt, l1ReceivedAt

@@ -58,6 +58,7 @@ grace starts only after a later effective recovery on L2.
 - has no owner or independent administration;
 - accepts configuration and status only from the aliased L1 reporter;
 - ignores duplicate or stale cross-chain messages and accepts only monotonic status progress;
+- invalidates the heartbeat when a healthy catch-up skips unseen transitions, forcing a fresh recovery boundary;
 - verifies sorted heartbeat signatures and recent canonical block hashes;
 - expires heartbeats after at most 15 minutes; and
 - exposes `UNINITIALIZED`, `HEALTHY`, `L1_REPORTED_IMPAIRED`, or `LEASE_EXPIRED` diagnostics.
