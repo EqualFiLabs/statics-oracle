@@ -15,9 +15,18 @@
   },
   "sequencer": {
     "feed": null,
+    "l1Reporter": null,
+    "l1Inbox": "0x1A07cc4BD17E0118BdB54D70990D2158AbAD7a2D",
+    "observerSetHash": null,
+    "threshold": null,
+    "pollIntervalSeconds": 30,
+    "failureSamples": 3,
+    "recoverySamples": 3,
+    "heartbeatIntervalSeconds": 300,
+    "leaseSeconds": 900,
     "gracePeriod": null,
     "verified": false,
-    "blocker": "Official docs publish a websocket sequencer feed but no canonical onchain uptime-feed proxy"
+    "blocker": "Hybrid sequencer signal is not yet deployed and independently reviewed"
   },
   "policy": {
     "maxAge": "Each row uses the heartbeat published for its exact proxy in the Chainlink directory",

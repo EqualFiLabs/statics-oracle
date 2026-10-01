@@ -168,11 +168,23 @@ An asset whose token/feed pair has been identified but SHALL NOT become enabled 
 
 #### Acceptance Criteria
 
-1. BEFORE production enablement of sequencer protection, THE canonical Robinhood Chain L2 Sequencer Uptime Feed SHALL be independently resolved and verified.
-2. WHEN the configured sequencer feed reports that the sequencer is down, THE Oracle System SHALL treat external prices as unavailable for protected state-changing operations.
-3. WHEN the sequencer has recently recovered, THE Oracle System SHALL enforce a configured recovery grace period before treating prices as live.
-4. THE Oracle System SHALL NOT fabricate or assume a sequencer-feed address.
-5. IF sequencer protection is required but its configuration is missing or invalid, THEN protected state-changing price reads SHALL fail closed.
+1. BEFORE production enablement, THE configured Robinhood sequencer signal contract, observer set, threshold, and recovery policy SHALL be independently reviewed.
+2. THE signal SHALL require a strict majority of at least three independent observers, with observer membership controlled only by an Ethereum Safe.
+3. EACH observer SHALL sample fresh progress from Robinhood's direct sequencer feed against an independent RPC view every 30 seconds.
+4. EACH observer SHALL require three consecutive failures before reporting impairment and three consecutive successes before reporting health or recovery.
+5. QUORUM-ATTESTED status transitions SHALL be ordered on Ethereum and delivered to Robinhood through the canonical delayed inbox.
+6. THE Robinhood feed SHALL require a quorum heartbeat at least every 15 minutes, with a target renewal cadence of five minutes.
+7. THE observed-availability feed SHALL become unavailable automatically when the heartbeat lease expires, without requiring a transaction to mark the sequencer down.
+8. WHEN the configured sequencer feed reports that the sequencer is down, THE Oracle System SHALL treat external prices as unavailable for protected state-changing operations.
+9. WHEN the sequencer has recently recovered, THE Oracle System SHALL enforce a configured recovery grace period before treating prices as live.
+10. THE Oracle System SHALL NOT describe the self-managed observed-availability signal as a canonical or Chainlink-managed uptime feed.
+11. IF sequencer protection is required but its configuration is missing, expired, invalid, or behind the L1 status, THEN protected state-changing price reads SHALL fail closed.
+12. THE L2 feed SHALL expose `UNINITIALIZED`, `HEALTHY`, `L1_REPORTED_IMPAIRED`, and `LEASE_EXPIRED` diagnostic reasons.
+13. EACH L2 heartbeat SHALL be signed for the current observer-set version and L1 status sequence, and a heartbeat from an earlier status sequence SHALL NOT restore health after a later status is applied.
+14. AUTHENTICATED configuration and status deliveries SHALL support monotonic catch-up after an earlier retryable expires, while configuration catch-up and observer rotation SHALL leave the feed impaired until fresh health evidence is accepted.
+15. OBSERVERS and coordinators SHALL refuse heartbeat renewal while the Robinhood observer-set version or status sequence differs from the authoritative Ethereum reporter state.
+16. OBSERVER signing endpoints SHALL require a distinct authentication secret per observer and SHALL be operated only across an authenticated private network or encrypted overlay.
+17. A BACKUP coordinator SHALL complete its delay before reading round state or collecting heartbeat signatures, so the canonical block evidence remains fresh when failover submission begins.
 
 ---
 
@@ -276,7 +288,7 @@ An asset whose token/feed pair has been identified but SHALL NOT become enabled 
 7. TESTS SHALL cover zero, negative, incomplete, stale, and paused oracle results.
 8. TESTS SHALL cover unsupported and disabled assets.
 9. TESTS SHALL cover incorrect token/feed bindings.
-10. TESTS SHALL cover sequencer-down and sequencer-recovery behavior once the canonical sequencer feed is configured.
+10. TESTS SHALL cover sequencer-down and sequencer-recovery behavior once the reviewed hybrid signal is configured.
 11. TESTS SHALL cover multi-asset Basket NAV calculation using assets with different token and feed decimal configurations.
 
 ---

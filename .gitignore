@@ -2,6 +2,7 @@
 /broadcast/
 /cache/
 /out/
+node_modules/
 
 # Coverage and analysis outputs
 /coverage/

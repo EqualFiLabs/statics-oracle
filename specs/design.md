@@ -145,7 +145,7 @@ The core implementation SHOULD use a single non-upgradeable `StaticsOracle` cont
 flowchart TD
     A[Statics / Integrator] --> O[StaticsOracle]
 
-    O --> S[Sequencer Uptime Feed]
+    O --> S[Observed Sequencer Availability Feed]
     O --> C[AssetOracleConfig]
 
     C --> F[Chainlink Feed Proxy]
@@ -529,9 +529,8 @@ Suggested storage:
 SequencerConfig private _sequencerConfig;
 ```
 
-The feed address SHALL remain unresolved in the specification until verified from an authoritative source.
-
-No placeholder address SHALL be deployed.
+The production address SHALL remain unset until the threshold feed is deployed, reviewed, and
+operated by independent parties. No placeholder address SHALL be configured.
 
 ---
 
@@ -692,7 +691,8 @@ Configuration SHALL validate:
 - contract code exists,
 - feed responds to `latestRoundData()`.
 
-Mainnet deployment tooling SHALL independently verify that the address is the canonical Robinhood Chain sequencer uptime feed before use.
+Mainnet deployment tooling SHALL independently verify the threshold feed deployment, observer
+set, strict-majority threshold, owner, bytecode, and recovery grace period before use.
 
 ---
 
@@ -1046,14 +1046,41 @@ During the coordinated corporate-action window, `oraclePaused()` causes strict S
 
 ## Evaluation
 
-Chainlink L2 uptime feeds conventionally return:
+The self-managed hybrid feed uses the Chainlink uptime-feed response convention:
 
 ```text
 0 = up
 1 = down
 ```
 
-V1 SHALL verify the canonical Robinhood deployment before production configuration.
+The feed is explicitly a self-managed availability signal, not a Chainlink-managed feed and not
+proof that every user can submit a transaction. At least three independent observers sample the
+direct sequencer feed and an independent RPC every 30 seconds. Each requires three consecutive
+failures before impairment and three consecutive successes before health or recovery.
+
+A strict majority signs only status transitions. One relayer submits the transition to an
+Ethereum reporter, which validates EIP-712 quorum and creates a retryable ticket to Robinhood.
+The Ethereum Safe is the only observer-set authority. Observer rotation immediately records an
+impaired state and queues the new configuration.
+
+Observers also sign a direct Robinhood heartbeat every five minutes. Each heartbeat is bound to
+the active observer-set version and L1 status sequence and creates a lease of at most 15 minutes.
+The L2 feed is healthy only when the latest L1 state is healthy and a lease for that exact status
+sequence is active. Lease expiry requires no transaction. The L2 contract verifies the signed
+block hash against `blockhash`, rejects current or old blocks, and exposes a diagnostic reason.
+Authenticated configuration and status messages may advance monotonically across an expired
+retryable. Configuration catch-up remains impaired, and any status advance requires a heartbeat
+signed for the resulting sequence before the feed can report healthy.
+
+Observer HTTP endpoints require a distinct bearer token per observer and are deployed only behind
+an authenticated private network or encrypted overlay. The coordinator keeps the token list in the
+same order as the observer URL list. A leaked credential therefore authorizes only one observer,
+not the quorum. An unsubmitted newer proposal does not prevent an observer from signing an older
+canonical block that is still newer than the block already accepted onchain.
+
+The primary coordinator collects evidence immediately. A backup coordinator waits first, then
+reads L1 and L2 state and collects fresh block evidence and signatures. The delay never ages a
+previously collected block proof toward the L2 `blockhash` retention boundary.
 
 When down: `SEQUENCER_DOWN`.
 
@@ -1100,6 +1127,13 @@ Suggested schema:
   },
   "sequencer": {
     "feed": null,
+    "l1Reporter": null,
+    "l1Inbox": "0x1A07cc4BD17E0118BdB54D70990D2158AbAD7a2D",
+    "observerSetHash": null,
+    "threshold": null,
+    "pollIntervalSeconds": 30,
+    "heartbeatIntervalSeconds": 300,
+    "leaseSeconds": 900,
     "gracePeriod": 0,
     "verified": false
   },
@@ -1243,7 +1277,7 @@ test/
 flowchart TD
     A[Generate whitelist manifest]
     B[Review token/feed matrix]
-    C[Resolve canonical sequencer feed]
+    C[Review and deploy hybrid sequencer signal]
     D[Run live verifier]
     E[Deploy StaticsOracle]
     F[Configure sequencer]
@@ -1557,8 +1591,9 @@ The system trusts:
 1. the explicitly configured Chainlink proxy,
 2. Chainlink's published answer,
 3. Robinhood's `oraclePaused()` signal for configured Stock Tokens,
-4. the configured Robinhood L2 sequencer uptime feed,
-5. the administrator controlling whitelist configuration.
+4. a strict majority of the configured sequencer observers,
+5. the Ethereum Safe for observer-set rotation and retryable configuration,
+6. the administrator controlling whitelist configuration.
 
 The system does not trust:
 

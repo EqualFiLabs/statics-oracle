@@ -19,7 +19,10 @@ depth = 64
 fail_on_revert = false
 
 [rpc_endpoints]
+ethereum_mainnet = "${ETH_MAINNET}"
+ethereum_sepolia = "${ETH_SEPOLIA}"
 robinhood_mainnet = "${ROBINHOOD_MAINNET}"
+robinhood_testnet = "${ROBINHOOD_TESTNET}"
 
 [fmt]
 line_length = 100

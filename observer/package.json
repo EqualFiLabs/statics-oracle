@@ -1,0 +1,18 @@
+{
+  "name": "@equalfi/robinhood-sequencer-signal",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "check": "node --check src/auth.mjs && node --check src/shared.mjs && node --check src/rpc.mjs && node --check src/quorum.mjs && node --check src/observer.mjs && node --check src/coordinator.mjs",
+    "start:observer": "node src/observer.mjs",
+    "start:coordinator": "node src/coordinator.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "viem": "2.57.1"
+  }
+}

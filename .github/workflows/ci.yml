@@ -39,6 +39,13 @@ jobs:
           node --check scripts/generate-whitelist.mjs
           node --check scripts/verify-whitelist.mjs
 
+      - name: Test sequencer signal services
+        working-directory: observer
+        run: |
+          npm ci
+          npm run check
+          npm test
+
       - name: Check formatting
         run: forge fmt --check
 

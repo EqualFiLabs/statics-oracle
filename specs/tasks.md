@@ -235,11 +235,40 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - nonzero = unavailable.
     - _Requirements: 7.2, 7.3, 12.7, 12.8_
 
-  - [x] 6.3 Add release gate for canonical sequencer feed
-    - Do NOT add a guessed Robinhood Chain uptime-feed address.
-    - Keep manifest sequencer state unverified until an authoritative source is found.
-    - Mainnet production enablement SHALL require an independently verified address.
+  - [x] 6.3 Add release gate for the hybrid sequencer signal
+    - Do NOT add a guessed or placeholder uptime-feed address.
+    - Keep manifest sequencer state unverified until the threshold feed is deployed and reviewed.
+    - Mainnet production enablement SHALL verify bytecode, observer set, threshold, owner, and policy.
     - _Requirements: 7.1, 7.4, 7.5_
+
+  - [x] 6.4 Implement hybrid L1 status and L2 heartbeat contracts
+    - Keep the authoritative observer set and transition ordering on Ethereum.
+    - Deliver configuration and status through chain-specific retryable tickets.
+    - Verify sorted EIP-712 heartbeat signatures bound to the active observer-set version and status sequence, plus a recent canonical block hash on L2.
+    - Expire the L2 healthy lease after at most 15 minutes without requiring a write.
+    - Accept authenticated monotonic catch-up when an earlier configuration or status retryable expires.
+    - Invalidate the lease and fail closed when the L1 observer set or status sequence changes.
+    - _Requirements: 7.1-7.8_
+
+  - [x] 6.5 Implement independent observer and coordinator services
+    - Require every signer to check the direct sequencer feed against an independent RPC view.
+    - Require observers and coordinators to suppress heartbeats while L2 configuration or status trails L1.
+    - Require three consecutive failures for impairment and three successes for recovery.
+    - Poll every 30 seconds, renew L2 every five minutes, and verify recovered signers.
+    - Authenticate each observer endpoint with a distinct secret over a private network.
+    - Delay a backup before it reads state or collects block evidence and signatures.
+    - _Requirements: 7.2-7.4, 7.7, 7.16, 7.17_
+
+  - [x] 6.6 Add signal deployment and integration tests
+    - Support Ethereum Mainnet to Robinhood Mainnet and Sepolia to Robinhood Testnet.
+    - Cover L1 quorum, retryable funding, alias authorization, ordering, expiry, recovery, rotation, bad signatures, invalid blocks, and unsafe config.
+    - Verify the feed against `StaticsOracle` recovery grace and a pinned Robinhood fork.
+    - _Requirements: 7.1-7.8, 12.7, 12.8, 13.10_
+
+  - [x] 6.7 Document multi-operator production operation
+    - Document trust boundaries, independent infrastructure, monitoring, rotation, and incidents.
+    - State that this is not a canonical Robinhood or Chainlink-managed feed.
+    - _Requirements: 7.1-7.8, 14.1-14.7_
 
 - [x] 7. Implement oracle price evaluation
   - [x] 7.1 Implement `_evaluatePrice`
@@ -709,15 +738,10 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Verify candidates as identity-valid even when not enabled.
     - _Requirements: 3.1-3.9, 5.7, 11.1-11.7_
 
-  - [ ] 22.3 Add production sequencer fork test only after canonical address resolution
-    - Blocked: official Robinhood documentation publishes a websocket sequencer feed,
-      but no authoritative source currently identifies a canonical onchain uptime-feed proxy.
-    - Do not block deterministic local testing on an unverified address.
-    - Once resolved:
-      - add it to the manifest,
-      - verify code,
-      - verify Chainlink interface,
-      - add fork coverage.
+  - [ ] 22.3 Add production sequencer fork test after threshold feed deployment
+    - Blocked until the reviewed L1 reporter and L2 feed are deployed and operational.
+    - Do not block deterministic local testing on an undeployed address.
+    - Once deployed, add it to the manifest, verify bytecode and configuration, and add fork coverage.
     - _Requirements: 7.1-7.5_
 
 - [x] 23. Create deployment scripts
@@ -867,7 +891,8 @@ The following MUST be complete before production deployment:
 - [ ] Crypto wrapper provenance reviewed for every enabled crypto asset.
 - [ ] Feed descriptions and decimals validated.
 - [ ] Per-asset `maxAge` values explicitly selected.
-- [ ] Canonical Robinhood Chain sequencer uptime feed resolved from an authoritative source.
+- [ ] Observed sequencer feed deployed and independently reviewed.
+- [ ] Independent observer operators, key custody, and monitoring verified.
 - [ ] Sequencer recovery grace period selected.
 - [ ] Full deterministic test suite passes.
 - [ ] Fuzz/property suite passes.
