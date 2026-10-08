@@ -9,6 +9,7 @@ import {
   heartbeatDue,
   normalizeHeartbeat,
   normalizeStatusReport,
+  serializeBigInts,
   validateCrossChainState,
   validateHeartbeat,
   validateHeartbeatSigningProgress,
@@ -18,6 +19,17 @@ import {
 
 const hash = `0x${"11".repeat(32)}`;
 const now = 1_000n;
+
+test("serializes nested preflight quantities without losing structure", () => {
+  const report = {
+    ethereum: { balance: 10n, chainId: 11_155_111 },
+    robinhood: { heads: [2n, { number: 3n }], balance: null },
+  };
+  assert.deepEqual(serializeBigInts(report), {
+    ethereum: { balance: "10", chainId: 11_155_111 },
+    robinhood: { heads: ["2", { number: "3" }], balance: null },
+  });
+});
 
 function validHeartbeatInput() {
   return {
