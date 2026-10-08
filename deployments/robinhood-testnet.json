@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "name": "robinhood-testnet",
+  "source": {
+    "repository": "https://github.com/EqualFiLabs/statics-oracle",
+    "commit": "29029600be94bc3497347d80bbf9e5172b2335df"
+  },
+  "chains": {
+    "ethereum": {
+      "chainId": 11155111,
+      "deployer": "0x4CF8e4D37F561815F208565a5b6Ca8a85b143205",
+      "minimumDeployerBalanceWei": "100000000000000000",
+      "delayedInbox": "0xF2939afA86F6f933A3CE17fCAB007907B6b0B7a4",
+      "explorer": "https://sepolia.etherscan.io"
+    },
+    "robinhood": {
+      "chainId": 46630,
+      "deployer": "0x6Ae2aD9905FEDC8270b828294D4b9CEC7CBBE316",
+      "minimumDeployerBalanceWei": "10000000000000000",
+      "sequencerFeedUrl": "wss://feed.testnet.chain.robinhood.com",
+      "explorer": "https://explorer.testnet.chain.robinhood.com"
+    }
+  },
+  "contracts": {
+    "reporter": {
+      "address": "0x116823FAc37F9fCf836d7608aa44811Ec249c05D",
+      "deploymentTransaction": "0xccf70d6ae6e26b1fb7a5b2d16a8b4cec9a99ffd6c7fa7a06b307cfd95e7c4cdf",
+      "runtimeCodeHash": "0x1b01eda730cbf2dec901ffb2038afa6e5b315e7b65a63a0113ff01473963c68b"
+    },
+    "feed": {
+      "address": "0x6cF8527F2C3aF72fa86E825c2e64de0f779d5F04",
+      "deploymentTransaction": "0x222a68e0c59a83fe869fd7d4c16582908d594d4378a017a4637810b3c64eb8c1",
+      "runtimeCodeHash": "0x2a9a8ece5a82e820ddf29f2e3ae9cd0926ca553f7d759f3953b327d242186b81"
+    }
+  },
+  "configuration": {
+    "owner": "0x4CF8e4D37F561815F208565a5b6Ca8a85b143205",
+    "refundAddress": "0x6Ae2aD9905FEDC8270b828294D4b9CEC7CBBE316",
+    "observers": [
+      "0x1bF1234Fe4068Ce6aE5c4ca1c4524415E7c431f3",
+      "0x3D60b9FFc7dAF7d3e8434dcCa56FA52e27590164",
+      "0x4A1e86317949B54CB74433FDf0b05d01C60FAb81"
+    ],
+    "threshold": 2,
+    "observerSetHash": "0xbeaf7bb9ea2be16473904e974dd0c0156411fa3c416c63d4dcbe6aa638acaa7e",
+    "statusGasLimit": "200000",
+    "configurationGasLimit": "400000",
+    "gasPriceBid": "100000000",
+    "reserveMessages": 4
+  },
+  "transactions": {
+    "funding": "0x5b9f3f74538576f2e2ea173ebfa62889c6a158f3f927fbcb6521493a41aac38a",
+    "initialization": "0xb7145d0643f7cea7b199ebcee2b5107b65cdd6ae4eb5197e00b74253af2ac16a"
+  },
+  "services": {
+    "pollIntervalMs": 30000,
+    "backupDelayMs": 45000
+  }
+}
