@@ -3,9 +3,11 @@ import test from "node:test";
 
 import {
   AvailabilityTracker,
+  HEARTBEAT_BLOCK_MARGIN,
   LEASE_SECONDS,
   ObserverState,
   requireFreshHeartbeatSample,
+  selectHeartbeatBlock,
   afterBackupDelay,
   heartbeatDue,
   normalizeHeartbeat,
@@ -97,6 +99,13 @@ test("heartbeat signing refreshes a cached sequencer head before validation", as
     requireFreshHeartbeatSample(async () => undefined, tracker),
     /observer is not healthy/,
   );
+});
+
+test("heartbeat selection leaves block confirmation margin and advances the accepted block", () => {
+  assert.equal(HEARTBEAT_BLOCK_MARGIN, 16n);
+  assert.equal(selectHeartbeatBlock(120n, 100n), 104n);
+  assert.throws(() => selectHeartbeatBlock(116n, 100n), /no newer mutually observable block/);
+  assert.throws(() => selectHeartbeatBlock(16n, 0n), /no confirmed block/);
 });
 
 test("backup delay happens before collecting fresh round evidence", async () => {

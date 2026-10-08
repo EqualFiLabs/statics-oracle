@@ -1,4 +1,5 @@
 export const POLL_INTERVAL_MS = 30_000;
+export const HEARTBEAT_BLOCK_MARGIN = 16n;
 export const HEARTBEAT_INTERVAL_SECONDS = 5n * 60n;
 export const LEASE_SECONDS = 15n * 60n;
 export const STATUS_VALIDITY_SECONDS = 5n * 60n;
@@ -55,6 +56,17 @@ export async function requireFreshHeartbeatSample(sample, tracker) {
     throw new Error("observer is not healthy");
   }
   return latest;
+}
+
+export function selectHeartbeatBlock(directHeadNumber, lastAcceptedBlock) {
+  if (directHeadNumber <= HEARTBEAT_BLOCK_MARGIN) {
+    throw new Error("sequencer feed has no confirmed block");
+  }
+  const target = directHeadNumber - HEARTBEAT_BLOCK_MARGIN;
+  if (target <= lastAcceptedBlock) {
+    throw new Error("no newer mutually observable block");
+  }
+  return target;
 }
 
 export async function afterBackupDelay({ role, delayMs, action, sleep = defaultSleep }) {
