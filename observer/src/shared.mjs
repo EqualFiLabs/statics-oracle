@@ -49,6 +49,14 @@ export class AvailabilityTracker {
   }
 }
 
+export async function requireFreshHeartbeatSample(sample, tracker) {
+  const latest = await sample();
+  if (!latest || tracker.state !== ObserverState.HEALTHY) {
+    throw new Error("observer is not healthy");
+  }
+  return latest;
+}
+
 export async function afterBackupDelay({ role, delayMs, action, sleep = defaultSleep }) {
   if (role === "backup") await sleep(delayMs);
   return await action();

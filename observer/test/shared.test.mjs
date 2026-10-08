@@ -5,6 +5,7 @@ import {
   AvailabilityTracker,
   LEASE_SECONDS,
   ObserverState,
+  requireFreshHeartbeatSample,
   afterBackupDelay,
   heartbeatDue,
   normalizeHeartbeat,
@@ -72,6 +73,30 @@ test("requires three consecutive samples for impairment and recovery", () => {
 test("restart starts unknown", () => {
   const tracker = new AvailabilityTracker();
   assert.equal(tracker.snapshot().state, ObserverState.UNKNOWN);
+});
+
+test("heartbeat signing refreshes a cached sequencer head before validation", async () => {
+  const tracker = new AvailabilityTracker();
+  for (let index = 0; index < 3; index += 1) tracker.record(true);
+  const input = validHeartbeatInput();
+  const cached = { ...input, directHead: { ...input.directHead, number: 97n } };
+  assert.throws(() => validateHeartbeat(cached), /ahead of the sequencer feed/);
+
+  let sampleCount = 0;
+  const sample = await requireFreshHeartbeatSample(async () => {
+    sampleCount += 1;
+    return {
+      directHead: input.directHead,
+      directReferenceBlock: input.directReferenceBlock,
+      referenceHead: input.referenceHead,
+    };
+  }, tracker);
+  assert.equal(sampleCount, 1);
+  assert.doesNotThrow(() => validateHeartbeat({ ...input, ...sample }));
+  await assert.rejects(
+    requireFreshHeartbeatSample(async () => undefined, tracker),
+    /observer is not healthy/,
+  );
 });
 
 test("backup delay happens before collecting fresh round evidence", async () => {
