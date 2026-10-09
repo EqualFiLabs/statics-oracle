@@ -19,7 +19,13 @@ import {
   validateHealthySnapshot,
 } from "./deployment.mjs";
 import { getBlock, readSequencerFeedHead, waitForBlock } from "./rpc.mjs";
-import { requireEnv, selectReferenceHead, serializeBigInts, validateObservedHeads } from "./shared.mjs";
+import {
+  MAX_HEAD_AGE_SECONDS,
+  requireEnv,
+  selectReferenceHead,
+  serializeBigInts,
+  validateObservedHeads,
+} from "./shared.mjs";
 
 const mode = process.argv[2];
 
@@ -76,15 +82,25 @@ function assertBytecode(value, field) {
 }
 
 async function assertNetworkAndFeed() {
-  const [l1ChainId, l2ChainId, inboxCode, directHead] = await Promise.all([
+  const [l1ChainId, l2ChainId, inboxCode] = await Promise.all([
     l1.getChainId(),
     l2.getChainId(),
     l1.getBytecode({ address: manifest.chains.ethereum.delayedInbox }),
-    readSequencerFeedHead(manifest.chains.robinhood.sequencerFeedUrl),
   ]);
   assertEqual(l1ChainId, manifest.chains.ethereum.chainId, "Ethereum chain ID");
   assertEqual(l2ChainId, manifest.chains.robinhood.chainId, "Robinhood chain ID");
   assertBytecode(inboxCode, "delayed inbox");
+  if (mode === "monitor") {
+    // The long-lived observers validate the direct feed. A timed monitor must
+    // not open another feed connection on every run.
+    const referenceHead = await getBlock(robinhoodRpcUrl);
+    const now = BigInt(Math.floor(Date.now() / 1_000));
+    if (now - referenceHead.timestamp > MAX_HEAD_AGE_SECONDS) {
+      throw new Error("reference RPC head is stale");
+    }
+    return { directHead: null, referenceHead };
+  }
+  const directHead = await readSequencerFeedHead(manifest.chains.robinhood.sequencerFeedUrl);
   const [directReferenceBlock, latestRpcHead] = await Promise.all([
     waitForBlock(robinhoodRpcUrl, directHead.number),
     getBlock(robinhoodRpcUrl),
@@ -429,7 +445,7 @@ async function smoke() {
     sourceCommit: manifest.source.commit,
     observerSetHash: manifest.configuration.observerSetHash,
     blocks: { reporterDeployment: reporterBlock, feedDeployment: feedBlock, initialization: initializationBlock },
-    chainHeads: { direct: network.directHead.number, reference: network.referenceHead.number },
+    chainHeads: { direct: network.directHead?.number ?? null, reference: network.referenceHead.number },
     observerCount: observers.length,
     observerSetVersion: snapshot.reporter.observerSetVersion,
     statusSequence: snapshot.reporter.statusSequence,

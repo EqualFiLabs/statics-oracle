@@ -204,8 +204,10 @@ This proves a live testnet flow only. It is not production assurance or independ
 
 ## Monitoring
 
-The monitor runs the same fail-closed checks every minute. Route nonzero unit results and journal
-output into the chosen alerting system. Alert immediately on:
+The timed monitor checks observer health, current RPC progress, contract state, and retryable
+reserve every minute. It does not open a new sequencer-feed WebSocket on each run; the long-lived
+observers check direct-feed and RPC agreement. Route nonzero unit results and journal output
+into the chosen alerting system. Alert immediately on:
 
 - any observer authentication or health failure;
 - direct-feed and RPC disagreement;
