@@ -19,7 +19,7 @@ import {
   validateHealthySnapshot,
 } from "./deployment.mjs";
 import { getBlock, readSequencerFeedHead, waitForBlock } from "./rpc.mjs";
-import { requireEnv, serializeBigInts, validateObservedHeads } from "./shared.mjs";
+import { requireEnv, selectReferenceHead, serializeBigInts, validateObservedHeads } from "./shared.mjs";
 
 const mode = process.argv[2];
 
@@ -85,10 +85,11 @@ async function assertNetworkAndFeed() {
   assertEqual(l1ChainId, manifest.chains.ethereum.chainId, "Ethereum chain ID");
   assertEqual(l2ChainId, manifest.chains.robinhood.chainId, "Robinhood chain ID");
   assertBytecode(inboxCode, "delayed inbox");
-  const [directReferenceBlock, referenceHead] = await Promise.all([
+  const [directReferenceBlock, latestRpcHead] = await Promise.all([
     waitForBlock(robinhoodRpcUrl, directHead.number),
     getBlock(robinhoodRpcUrl),
   ]);
+  const referenceHead = selectReferenceHead(directReferenceBlock, latestRpcHead);
   validateObservedHeads({
     directHead,
     directReferenceBlock,

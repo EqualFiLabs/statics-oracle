@@ -21,6 +21,7 @@ import {
   parsePrivateKey,
   requireFreshHeartbeatSample,
   requireEnv,
+  selectReferenceHead,
   serializeBigInts,
   validateCrossChainState,
   validateHeartbeat,
@@ -82,7 +83,10 @@ async function sampleAvailability() {
   try {
     const directHead = await readSequencerFeedHead(directFeedUrl);
     const directReferenceBlock = await waitForBlock(robinhoodRpcUrl, directHead.number);
-    const referenceHead = await getBlock(robinhoodRpcUrl);
+    const referenceHead = selectReferenceHead(
+      directReferenceBlock,
+      await getBlock(robinhoodRpcUrl),
+    );
     const now = BigInt(Math.floor(Date.now() / 1_000));
     validateObservedHeads({ directHead, referenceHead, directReferenceBlock, now });
     tracker.record(true);

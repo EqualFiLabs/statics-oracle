@@ -31,6 +31,7 @@ import {
   parsePrivateKey,
   requireEnv,
   selectHeartbeatBlock,
+  selectReferenceHead,
   serializeBigInts,
   validateCrossChainState,
   validateHeartbeat,
@@ -212,7 +213,10 @@ async function renewHeartbeat() {
     waitForBlock(robinhoodRpcUrl, directHead.number),
     waitForBlock(robinhoodRpcUrl, targetBlock),
   ]);
-  const referenceHead = await getBlock(robinhoodRpcUrl);
+  const referenceHead = selectReferenceHead(
+    directReferenceBlock,
+    await getBlock(robinhoodRpcUrl),
+  );
   const heartbeat = normalizeHeartbeat({
     observerSetVersion: version,
     statusSequence,

@@ -8,6 +8,7 @@ import {
   ObserverState,
   requireFreshHeartbeatSample,
   selectHeartbeatBlock,
+  selectReferenceHead,
   afterBackupDelay,
   heartbeatDue,
   normalizeHeartbeat,
@@ -106,6 +107,20 @@ test("heartbeat selection leaves block confirmation margin and advances the acce
   assert.equal(selectHeartbeatBlock(120n, 100n), 104n);
   assert.throws(() => selectHeartbeatBlock(116n, 100n), /no newer mutually observable block/);
   assert.throws(() => selectHeartbeatBlock(16n, 0n), /no confirmed block/);
+});
+
+test("verified feed block remains the reference when latest RPC backend lags", () => {
+  const verified = { number: 120n, hash: `0x${"11".repeat(32)}`, timestamp: now };
+  const lagging = { number: 118n, hash: `0x${"22".repeat(32)}`, timestamp: now - 1n };
+  const caughtUp = { number: 121n, hash: `0x${"33".repeat(32)}`, timestamp: now + 1n };
+  assert.equal(selectReferenceHead(verified, lagging), verified);
+  assert.equal(selectReferenceHead(verified, caughtUp), caughtUp);
+  assert.doesNotThrow(() => validateObservedHeads({
+    directHead: verified,
+    directReferenceBlock: verified,
+    referenceHead: selectReferenceHead(verified, lagging),
+    now,
+  }));
 });
 
 test("backup delay happens before collecting fresh round evidence", async () => {

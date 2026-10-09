@@ -69,6 +69,12 @@ export function selectHeartbeatBlock(directHeadNumber, lastAcceptedBlock) {
   return target;
 }
 
+export function selectReferenceHead(verifiedDirectBlock, latestRpcHead) {
+  return latestRpcHead.number >= verifiedDirectBlock.number
+    ? latestRpcHead
+    : verifiedDirectBlock;
+}
+
 export async function afterBackupDelay({ role, delayMs, action, sleep = defaultSleep }) {
   if (role === "backup") await sleep(delayMs);
   return await action();
