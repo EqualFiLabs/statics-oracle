@@ -12,11 +12,27 @@ contract RobinhoodFeedsForkTest is RobinhoodForkBase {
         _setUpRobinhoodFork();
     }
 
-    function test_EnabledTargetsMatchPinnedLiveContracts() external view {
-        uint256 enabledCount;
-        for (uint256 i; i < assetCount; ++i) {
-            if (keccak256(bytes(_string(i, "status"))) != keccak256("ENABLED")) continue;
-            ++enabledCount;
+    function test_EnabledTargetsMatchPinnedLiveContractsA() external view {
+        assertEq(assetCount, 46);
+        _checkRange(0, 16);
+    }
+
+    function test_EnabledTargetsMatchPinnedLiveContractsB() external view {
+        assertEq(assetCount, 46);
+        _checkRange(16, 32);
+    }
+
+    function test_EnabledTargetsMatchPinnedLiveContractsC() external view {
+        assertEq(assetCount, 46);
+        _checkRange(32, assetCount);
+    }
+
+    function _checkRange(
+        uint256 start,
+        uint256 end
+    ) internal view {
+        for (uint256 i = start; i < end; ++i) {
+            assertEq(_string(i, "status"), "ENABLED");
 
             address token = _address(i, "token");
             address feed = _address(i, "feed");
@@ -38,6 +54,5 @@ contract RobinhoodFeedsForkTest is RobinhoodForkBase {
                 assertFalse(IRobinhoodStockToken(token).oraclePaused());
             }
         }
-        assertEq(enabledCount, 17);
     }
 }
