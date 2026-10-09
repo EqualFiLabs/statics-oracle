@@ -100,7 +100,7 @@ test("service samples reuse one open feed connection", async () => {
   assert.equal(sockets[0].closeCount, 0);
 });
 
-test("stale or closed feeds fail without opening another connection", async () => {
+test("stale feeds close once and respect the reconnect cooldown", async () => {
   const sockets = [];
   let currentTime = 1_000;
   class FakeWebSocket {
@@ -118,13 +118,12 @@ test("stale or closed feeds fail without opening another connection", async () =
   await initial;
   currentTime += 60_001;
   await assert.rejects(reader.readLatestHead(), /recent head/);
-  sockets[0].onclose();
-  await assert.rejects(reader.readLatestHead(), /connection closed/);
+  await assert.rejects(reader.readLatestHead(), /recent head/);
   assert.equal(sockets.length, 1);
   assert.equal(sockets[0].closeCount, 1);
 });
 
-test("connection failure is terminal rather than a reconnect loop", async () => {
+test("failed connections do not retry before the cooldown", async () => {
   let connections = 0;
   class FailingWebSocket {
     constructor() {
@@ -140,4 +139,65 @@ test("connection failure is terminal rather than a reconnect loop", async () => 
   await assert.rejects(reader.readLatestHead(), /connection failed/);
   await assert.rejects(reader.readLatestHead(), /connection failed/);
   assert.equal(connections, 1);
+});
+
+test("failed feed sockets reconnect at most three times per hour", async () => {
+  const sockets = [];
+  let currentTime = 1_000;
+  class FakeWebSocket {
+    constructor() { sockets.push(this); this.closeCount = 0; }
+    close() { this.closeCount += 1; }
+    push(data) { this.onmessage?.({ data }); }
+    fail() { this.onerror?.(); }
+  }
+  const reader = createSequencerFeedReader("wss://feed.example.test", {
+    WebSocketClass: FakeWebSocket,
+    now: () => currentTime,
+  });
+  const first = reader.readLatestHead();
+  sockets[0].push(feedMessage(41));
+  await first;
+  sockets[0].fail();
+  await assert.rejects(reader.readLatestHead(), /connection failed/);
+  currentTime += 300_000;
+  const second = reader.readLatestHead();
+  assert.equal(sockets.length, 2);
+  sockets[1].push(feedMessage(42));
+  assert.equal((await second).number, 42n);
+  sockets[1].fail();
+  currentTime += 300_000;
+  const third = reader.readLatestHead();
+  assert.equal(sockets.length, 3);
+  sockets[2].push(feedMessage(43));
+  assert.equal((await third).number, 43n);
+  sockets[2].fail();
+  currentTime += 300_000;
+  await assert.rejects(reader.readLatestHead(), /connection failed/);
+  assert.equal(sockets.length, 3);
+  currentTime = 3_601_001;
+  const fourth = reader.readLatestHead();
+  assert.equal(sockets.length, 4);
+  sockets[3].push(feedMessage(44));
+  assert.equal((await fourth).number, 44n);
+});
+
+test("invalid feed data never triggers a reconnect", async () => {
+  const sockets = [];
+  let currentTime = 1_000;
+  class FakeWebSocket {
+    constructor() { sockets.push(this); }
+    close() {}
+    push(data) { this.onmessage?.({ data }); }
+  }
+  const reader = createSequencerFeedReader("wss://feed.example.test", {
+    WebSocketClass: FakeWebSocket,
+    now: () => currentTime,
+  });
+  const first = reader.readLatestHead();
+  sockets[0].push(feedMessage(41));
+  await first;
+  sockets[0].push("{invalid");
+  currentTime += 3_600_001;
+  await assert.rejects(reader.readLatestHead(), /invalid sequencer feed message/);
+  assert.equal(sockets.length, 1);
 });

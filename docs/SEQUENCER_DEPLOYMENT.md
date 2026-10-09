@@ -206,8 +206,13 @@ This proves a live testnet flow only. It is not production assurance or independ
 
 The timed monitor checks observer health, current RPC progress, contract state, and retryable
 reserve every minute. It does not open a new sequencer-feed WebSocket on each run; the long-lived
-observers check direct-feed and RPC agreement. Route nonzero unit results and journal output
-into the chosen alerting system. Alert immediately on:
+observers check direct-feed and RPC agreement. The observer and coordinator each keep one feed
+socket open. After a connection error, close,
+or stale head, they wait five minutes before reconnecting and permit at most three connections
+in a rolling hour. Invalid feed data and conflicting block hashes require operator review.
+An observer stays impaired until three fresh samples succeed.
+
+Route nonzero unit results and journal output into the chosen alerting system. Alert immediately on:
 
 - any observer authentication or health failure;
 - direct-feed and RPC disagreement;
