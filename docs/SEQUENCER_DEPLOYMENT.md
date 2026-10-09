@@ -149,9 +149,15 @@ monitor.env
 ```
 
 Each observer environment follows `observer/.env.example` and contains its own signing key,
-distinct bearer token, independent RPC, host, and port. Each coordinator receives the ordered
-observer URLs and matching ordered token list. Set `RELAYER_ROLE=primary` for the primary and
-`RELAYER_ROLE=backup` with `BACKUP_DELAY_MS=45000` for the backup.
+distinct bearer token, independent RPC, host, and port. Bind the observer HTTP API to
+`127.0.0.1`; never expose it directly on a public interface. Use an authenticated encrypted
+transport between the coordinator and each host. The mainnet installation uses a mutual-TLS
+Nginx server on each observer, a source-IP firewall rule, and three loopback-only Nginx
+upstream proxies on the coordinator. Each proxy validates its observer server certificate,
+while each observer validates the coordinator client certificate. The coordinator receives
+only the ordered loopback proxy URLs and matching ordered token list. Set
+`RELAYER_ROLE=primary` for the primary and `RELAYER_ROLE=backup` with
+`BACKUP_DELAY_MS=45000` for the backup.
 
 Copy the units from `observer/systemd/`, reload systemd, and enable the required instances:
 
