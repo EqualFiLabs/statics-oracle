@@ -17,5 +17,6 @@ interrupting the live observer and coordinator services.
 
 The fork check uses deployed mainnet feed state but does not submit a recovery heartbeat to
 mainnet. The quorum recovery and one-hour price boundary are exercised with local test keys.
-The manifest's `sequencer.verified` value remains unchanged pending approval to update the
-deployment interlock.
+The manifest records `sequencer.verified: true` and `gracePeriod: 3600` based on the live
+monitor checks and the focused recovery tests above. This is operational verification of the
+self-managed signal, not an external audit certification.

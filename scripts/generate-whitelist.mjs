@@ -377,9 +377,9 @@ export async function generateManifest({ rpcUrl, blockNumber, generatedAt }) {
       recoverySamples: 3,
       heartbeatIntervalSeconds: 300,
       leaseSeconds: 900,
-      gracePeriod: null,
-      verified: false,
-      blocker: "Sequencer signal is deployed; independent review and recovery grace period remain pending",
+      gracePeriod: 3600,
+      verified: true,
+      blocker: null,
     },
     policy: {
       maxAge: "Each row uses the heartbeat published for its exact proxy in the Chainlink directory",

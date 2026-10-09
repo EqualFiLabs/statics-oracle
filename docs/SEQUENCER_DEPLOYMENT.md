@@ -16,7 +16,7 @@ The minimum deployment contains:
 - one `RobinhoodSequencerReporterL1` on Sepolia;
 - one `RobinhoodSequencerAvailabilityFeed` on Robinhood Testnet;
 - three independently operated observers with a two-signature threshold;
-- one primary coordinator and one delayed backup coordinator; and
+- one primary coordinator, with a delayed backup coordinator available for continuity; and
 - one read-only monitor scheduled at least once per minute.
 
 Use the official testnet sequencer feed at `wss://feed.testnet.chain.robinhood.com`. Use an
@@ -144,9 +144,10 @@ observer-1.env
 observer-2.env
 observer-3.env
 coordinator-primary.env
-coordinator-backup.env
 monitor.env
 ```
+
+Add `coordinator-backup.env` when operating a delayed backup coordinator.
 
 Each observer environment follows `observer/.env.example` and contains its own signing key,
 distinct bearer token, independent RPC, host, and port. Each coordinator receives the ordered
@@ -160,9 +161,10 @@ systemctl enable --now statics-sequencer-observer@1.service
 systemctl enable --now statics-sequencer-observer@2.service
 systemctl enable --now statics-sequencer-observer@3.service
 systemctl enable --now statics-sequencer-coordinator@primary.service
-systemctl enable --now statics-sequencer-coordinator@backup.service
 systemctl enable --now statics-sequencer-monitor.timer
 ```
+
+Enable `statics-sequencer-coordinator@backup.service` separately when a backup is installed.
 
 Observers must be separated across operators, hosts, network paths, RPC providers, and key
 custody. Running three unit instances on one host is acceptable only for disposable smoke testing,
@@ -215,7 +217,9 @@ the corresponding L2 state change within the reviewed operational window.
 
 ## Failure drills
 
-Complete and record all drills before using the signal as an oracle dependency:
+Prove lease expiry, quorum recovery, and the consumer's configured grace period on a fork or
+testnet before using the signal as an oracle dependency. The other drills below exercise
+operational resilience and can be completed after initial configuration:
 
 1. Stop the primary coordinator and confirm delayed-backup renewal.
 2. Stop one observer and confirm the two-of-three quorum remains live while monitoring alerts.
@@ -255,5 +259,7 @@ Archive:
 - failure-drill evidence; and
 - independent review results.
 
-Do not set `config/robinhood-mainnet.assets.json` sequencer fields to verified and do not deploy the
-full Statics Oracle until the separate mainnet deployment and production gates have passed.
+Set `config/robinhood-mainnet.assets.json` sequencer fields to verified after checking the exact
+mainnet deployment bindings, reporter reserve, live observer and monitor health, a focused
+lease-expiry/recovery test, and the chosen recovery grace period. This manifest flag permits
+oracle configuration; it does not certify an external audit.

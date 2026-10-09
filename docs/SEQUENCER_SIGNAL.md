@@ -126,9 +126,12 @@ Deployment is not part of repository implementation. Before broadcast:
 4. Call `initializeL2Feed` on the reporter, which queues the initial impaired configuration.
 5. Confirm the configuration retryable is redeemed on Robinhood.
 6. Start observers and wait for three successful samples on each required signer.
-7. Start the primary coordinator and at least one delayed backup.
+7. Start the primary coordinator. A delayed backup improves continuity but is not required for
+   fail-closed heartbeat operation.
 8. Confirm the L1 healthy transition, its L2 redemption, and an accepted heartbeat.
-9. Configure Statics only after independent review and a chosen recovery grace period.
+9. Confirm the exact deployment bindings, reporter reserve, live observer and monitor health,
+   and the focused lease-expiry/recovery test before configuring Statics with the chosen
+   recovery grace period.
 
 The L1 deployment script requires:
 

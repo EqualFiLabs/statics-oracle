@@ -182,12 +182,21 @@ contract DeploymentScriptsTest is Test {
         assertEq(oracle.owner(), address(this));
     }
 
-    function test_CheckedInManifestRefusesUnverifiedSequencer() external {
+    function test_CheckedInManifestSelectsVerifiedSequencerAndGrace() external view {
+        string memory manifest = vm.readFile("config/robinhood-mainnet.assets.json");
+        assertTrue(vm.parseJsonBool(manifest, ".sequencer.verified"));
+        assertEq(vm.parseJsonUint(manifest, ".sequencer.gracePeriod"), 1 hours);
+        assertEq(
+            vm.parseJsonAddress(manifest, ".sequencer.feed"),
+            0xeCe3F60De85705472292a44787123a8Fc46CDa54
+        );
+    }
+
+    function test_UnverifiedSequencerStillRejected() external {
         vm.chainId(4663);
         StaticsOracle oracle = new StaticsOracle(address(configurator));
-        string memory manifest = vm.readFile("config/robinhood-mainnet.assets.json");
         vm.expectRevert(ConfigureStaticsOracle.UnverifiedSequencer.selector);
-        configurator.configure(oracle, manifest);
+        configurator.configure(oracle, "{\"sequencer\":{\"verified\":false}}");
         assertEq(oracle.registryVersion(), 0);
     }
 
