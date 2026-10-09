@@ -25,13 +25,14 @@ Sourcify returned exact matches for the
 and [feed](https://sourcify.dev/server/verify-ui/jobs/bcfc977f-ea18-48ca-90f1-4ceb2f8fc5ad).
 [Etherscan](https://etherscan.io/address/0x30AdFaEf118AcAa415d73a20D55Dc7a8CD3381B4#code)
 also serves the Ethereum reporter source, with compiler
-`v0.8.37+commit.f401782d`. Robinhood Blockscout verification remains pending.
-Its per-instance API returned a Cloudflare HTTP 403. The authenticated PRO
-API returned HTTP 500 for multipart uploads of the Sourcify files and standard
-JSON input. A form-encoded standard JSON submission was accepted, but the
-asynchronous verification reported `Fail - Unable to verify`, including when
-the known constructor argument was supplied explicitly. This record does not
-claim Blockscout verification.
+`v0.8.37+commit.f401782d`. [RobinScan](https://robin.etherscan.io/address/0xeCe3F60De85705472292a44787123a8Fc46CDa54#code)
+serves the Robinhood feed source and ABI. Its Etherscan V2 verification returned
+`Pass - Verified` for submission
+`1uyivxytq2ntxzg6dbnsudadgap194zxvbuypkzuydyzikwsw9`; a source-code read
+confirmed compiler `v0.8.37+commit.f401782d` and optimizer runs `20000`.
+Robinhood Blockscout remains unverified: on 2026-10-09, its verification form
+listed Solidity compiler versions through `0.8.36`, while the deployed feed
+uses `0.8.37`.
 
 ## Initialization and configuration
 
