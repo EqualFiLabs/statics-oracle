@@ -1,4 +1,10 @@
 // SPDX-License-Identifier: MIT
+// ============================================================================
+//                                 EqualFi Labs
+//                          https://equalfi.org
+//                       https://staticsprotocol.com
+//                           mhooft@equalfilabs.com
+// ============================================================================
 pragma solidity ^0.8.24;
 
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
