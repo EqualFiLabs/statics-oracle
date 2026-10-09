@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "name": "robinhood-mainnet",
+  "source": {
+    "repository": "https://github.com/EqualFiLabs/statics-oracle",
+    "commit": "4fabe1a8518ea12a26d0f61c31339b00bbd1487a"
+  },
+  "chains": {
+    "ethereum": {
+      "chainId": 1,
+      "deployer": "0x4CF8e4D37F561815F208565a5b6Ca8a85b143205",
+      "minimumDeployerBalanceWei": "10000000000000000",
+      "delayedInbox": "0x1A07cc4BD17E0118BdB54D70990D2158AbAD7a2D",
+      "explorer": "https://etherscan.io"
+    },
+    "robinhood": {
+      "chainId": 4663,
+      "deployer": "0x4CF8e4D37F561815F208565a5b6Ca8a85b143205",
+      "minimumDeployerBalanceWei": "5000000000000000",
+      "sequencerFeedUrl": "wss://feed.mainnet.chain.robinhood.com",
+      "explorer": "https://robinhoodchain.blockscout.com"
+    }
+  },
+  "contracts": {
+    "reporter": {
+      "address": "0x30adfaef118acaa415d73a20d55dc7a8cd3381b4",
+      "deploymentTransaction": "0x7dbc4bbc91ac6bc64d6638da907beb7f05ddd658f03a0c7f01ceef1a0d9dcad8",
+      "runtimeCodeHash": "0x371b67f81457f3967cd1fc39009e7462b8b9b0aa117955940c6180740ddd2ea8"
+    },
+    "feed": {
+      "address": "0xece3f60de85705472292a44787123a8fc46cda54",
+      "deploymentTransaction": "0xcdc735fd642fef6aead6485a194d1654b1e5a5d0f772add66323e933f772d201",
+      "runtimeCodeHash": "0x7768b4390fd3a9d6d83c9e8aaa20d4063bf1438f48b296623ab20258dd5fe653"
+    }
+  },
+  "configuration": {
+    "owner": "0x4CF8e4D37F561815F208565a5b6Ca8a85b143205",
+    "refundAddress": "0x4CF8e4D37F561815F208565a5b6Ca8a85b143205",
+    "observers": [
+      "0x644039C01A3d4c14281A3deB663177533298eD36",
+      "0x88F051E075115Cce2b6958D7DbC0d4986E8F298D",
+      "0xcBD918495c110d8263cC89D6D1bB6cBc5E3d3B6c"
+    ],
+    "threshold": 2,
+    "observerSetHash": "0x04d01fb3f628cf7fd0130982d87c1ba682525ffe923c6fc229ae0de25a388552",
+    "statusGasLimit": "200000",
+    "configurationGasLimit": "400000",
+    "gasPriceBid": "100000000",
+    "reserveMessages": 4
+  },
+  "transactions": {
+    "funding": "0x0be2a6333a6f1fd36f8ea05983dc218df14dcf4ec4f5309429081284972beebd",
+    "initialization": "0xd885ba69d42b52a4a0597b89ad56a07658a235b60c7be84ac4f8a795e75aad1d"
+  },
+  "services": {
+    "pollIntervalMs": 30000,
+    "backupDelayMs": 45000
+  }
+}

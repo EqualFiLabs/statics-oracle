@@ -91,3 +91,106 @@ export async function readSequencerFeedHead(url, timeoutMs = 8_000) {
     };
   });
 }
+
+// A service holds one feed connection and reads the most recent pushed head.
+// Recoverable failures permit at most three connections per hour, spaced five
+// minutes apart. Invalid feed data remains terminal until operator review.
+export function createSequencerFeedReader(url, {
+  WebSocketClass = WebSocket,
+  firstMessageTimeoutMs = 8_000,
+  maxMessageAgeMs = 60_000,
+  reconnectDelayMs = 5 * 60_000,
+  connectionWindowMs = 60 * 60_000,
+  maxConnectionsPerWindow = 3,
+  now = Date.now,
+} = {}) {
+  let socket;
+  let latestHead;
+  let receivedAt;
+  let terminalError;
+  let firstHeadPromise;
+  let resolveFirstHead;
+  let rejectFirstHead;
+  let firstMessageTimeout;
+  let recoverableError = false;
+  let nextConnectAt = 0;
+  let connectionAttempts = [];
+
+  function fail(error, recoverable = true) {
+    if (terminalError) return;
+    terminalError = error;
+    recoverableError = recoverable;
+    nextConnectAt = now() + reconnectDelayMs;
+    clearTimeout(firstMessageTimeout);
+    if (socket) {
+      socket.onmessage = null;
+      socket.onerror = null;
+      socket.onclose = null;
+      try { socket.close(); } catch { /* already closed */ }
+    }
+    rejectFirstHead?.(error);
+  }
+
+  function start() {
+    if (firstHeadPromise && !terminalError) return;
+    const currentTime = now();
+    if (terminalError && (!recoverableError || currentTime < nextConnectAt)) return;
+    connectionAttempts = connectionAttempts.filter((attempt) => currentTime - attempt < connectionWindowMs);
+    if (connectionAttempts.length >= maxConnectionsPerWindow) return;
+    terminalError = undefined;
+    recoverableError = false;
+    receivedAt = undefined;
+    firstHeadPromise = new Promise((resolve, reject) => {
+      resolveFirstHead = resolve;
+      rejectFirstHead = reject;
+    });
+    connectionAttempts.push(currentTime);
+    try {
+      socket = new WebSocketClass(url);
+    } catch {
+      fail(new Error("sequencer feed connection failed"));
+      return;
+    }
+    firstMessageTimeout = setTimeout(
+      () => fail(new Error("sequencer feed timed out")),
+      firstMessageTimeoutMs,
+    );
+    socket.onerror = () => fail(new Error("sequencer feed connection failed"));
+    socket.onclose = () => fail(new Error("sequencer feed connection closed"));
+    socket.onmessage = (event) => {
+      let head;
+      try {
+        head = parseSequencerFeedMessage(event.data);
+      } catch (error) {
+        if (error instanceof SyntaxError) fail(new Error("invalid sequencer feed message"), false);
+        // Confirmation-only frames contain no head and are not samples.
+        return;
+      }
+      if (latestHead && head.number < latestHead.number) return;
+      if (latestHead && head.number === latestHead.number && head.hash !== latestHead.hash) {
+        fail(new Error("sequencer feed reported conflicting block hashes"), false);
+        return;
+      }
+      latestHead = head;
+      receivedAt = now();
+      clearTimeout(firstMessageTimeout);
+      resolveFirstHead?.(head);
+      resolveFirstHead = undefined;
+      rejectFirstHead = undefined;
+    };
+  }
+
+  return {
+    async readLatestHead() {
+      start();
+      if (terminalError) throw terminalError;
+      await firstHeadPromise;
+      if (terminalError) throw terminalError;
+      if (now() - receivedAt > maxMessageAgeMs) {
+        fail(new Error("sequencer feed has not delivered a recent head"));
+        throw terminalError;
+      }
+      return latestHead;
+    },
+  };
+}
