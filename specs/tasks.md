@@ -410,38 +410,17 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - asset rows.
     - _Requirements: 11.1-11.7_
 
-  - [x] 11.2 Seed V1 Stock/ETF matrix
-    - Add the approved target rows from the requirements:
-      - AAPL
-      - NVDA
-      - MSFT
-      - GOOGL
-      - AMZN
-      - META
-      - TSLA
-      - AMD
-      - PLTR
-      - COIN
-      - MSTR
-      - CRCL
-      - ORCL
-      - SPY
-      - QQQ
-    - Preserve exact token/feed bindings from the reviewed whitelist.
+  - [x] 11.2 Seed Robinhood Stock Token and ETF matrix
+    - Bind all 36 Robinhood Stock Tokens with matched USD feed proxies in Appendix A.
+    - Match each exact token address to the Robinhood asset registry and each feed proxy to the Chainlink directory.
+    - Enable the reviewed Stock Token and ETF rows in the desired manifest.
     - _Requirements: 2.7, 11.1-11.7_
 
-  - [x] 11.3 Seed crypto matrix
-    - Add:
-      - WETH
-      - USDG
-      - LINK
-      - WBTC
-      - cbBTC
-      - USDC
-      - USDT
-      - wstETH.
-    - Keep only WETH and USDG as initial enabled targets unless candidate provenance/risk review is separately completed.
-    - Keep the remaining crypto entries as `CANDIDATE`.
+  - [x] 11.3 Seed verified crypto and stable matrix
+    - Bind the ten crypto and stable token/feed pairs in Appendix A.
+    - Verify seven bridged tokens against their Ethereum origins and the canonical Robinhood L2 Gateway Router.
+    - Bind LINK to Chainlink's official Robinhood token address; retain WETH and USDG.
+    - Enable the exact approved rows in the desired manifest.
     - _Requirements: 5.1-5.7, 10.1-10.4, 11.1-11.7_
 
   - [x] 11.4 Record provenance metadata
@@ -525,7 +504,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
       - invalid decimals,
       - invalid price.
     - Review warning:
-      - candidate asset liquidity/provenance review still pending,
+      - future candidate asset liquidity/provenance review still pending,
       - source metadata changed without affecting approved identity.
     - _Requirements: 3.6, 5.7, 10.2, 11.7_
 
@@ -536,7 +515,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
   - Re-run live verification.
   - Compare generated output to checked-in output.
   - Confirm no ticker-based resolution can silently change bindings.
-  - Confirm candidate crypto assets remain unavailable for strict production pricing.
+  - Confirm every enabled crypto asset uses its exact approved token and feed binding.
   - _Requirements: 2, 3, 5, 10, 11_
 
 - [x] 15. Build full configuration and lifecycle unit tests
@@ -743,7 +722,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - **New file:** `test/fork/WhitelistMatrix.t.sol`
     - Read or derive expected configuration from the checked-in manifest.
     - Avoid duplicating the whitelist in Solidity constants where practical.
-    - Verify candidates as identity-valid even when not enabled.
+    - Verify every approved row is identity-valid before enablement.
     - _Requirements: 3.1-3.9, 5.7, 11.1-11.7_
 
   - [ ] 22.3 Add production sequencer fork test after threshold feed deployment
@@ -766,7 +745,7 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - Register assets as candidates.
     - Configure verified sequencer feed.
     - Enable only approved V1 assets.
-    - Leave candidate crypto assets disabled/candidate.
+    - Enable only exact approved token/feed pairs from the manifest.
     - _Requirements: 5.7, 7.1, 10.1-10.4, 11_
 
   - [x] 23.3 Add deployed-state verifier

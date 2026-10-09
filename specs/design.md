@@ -1306,8 +1306,7 @@ flowchart TD
     E[Deploy StaticsOracle]
     F[Configure sequencer]
     G[Register assets as CANDIDATE]
-    H[Enable approved V1 assets]
-    I[Leave candidate crypto disabled]
+    H[Enable approved manifest assets]
     J[Verify deployed state against manifest]
 
     A --> B
@@ -1317,9 +1316,7 @@ flowchart TD
     E --> F
     F --> G
     G --> H
-    G --> I
     H --> J
-    I --> J
 ```
 
 ---
