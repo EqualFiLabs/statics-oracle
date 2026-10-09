@@ -23,8 +23,12 @@ optimizer runs `20000`, and the Cancun EVM target. The reporter creation used
 Sourcify returned exact matches for the
 [reporter](https://sourcify.dev/server/verify-ui/jobs/8dcd3adc-75e2-43e1-8695-197610862f64)
 and [feed](https://sourcify.dev/server/verify-ui/jobs/bcfc977f-ea18-48ca-90f1-4ceb2f8fc5ad).
-Robinhood Blockscout verification is a separate pending item; its API returned
-HTTP 403 during submission. This record does not claim Blockscout verification.
+[Etherscan](https://etherscan.io/address/0x30AdFaEf118AcAa415d73a20D55Dc7a8CD3381B4#code)
+also serves the Ethereum reporter source, with compiler
+`v0.8.37+commit.f401782d`. Robinhood Blockscout verification remains pending:
+its per-instance API returned a Cloudflare HTTP 403, while its authenticated
+PRO API returned HTTP 500 for both Sourcify file import and standard JSON
+source submission. This record does not claim Blockscout verification.
 
 ## Initialization and configuration
 
@@ -100,11 +104,22 @@ reported sequence `3`, `isUp=true`, `latestRoundData.answer=0`, and an active
 
 Singapore had one feed socket failure during the observer watch, and India
 had two after the first heartbeat. The two-of-three quorum continued renewing.
-Runtime commit `33e6752` adds a five-minute reconnect cooldown and a limit of
-three connections per rolling
+Runtime commit `33e6752a36676cf38b7f40b43ee3c61f47e101af` adds a
+five-minute reconnect cooldown and a limit of three connections per rolling
 hour; malformed data and conflicting hashes still stop recovery. The current
 read-only monitor on the coordinator checks observer and on-chain state every
 minute. A manual monitor run passed with all three observers healthy, status
 sequence `3`, answer `0`, and more than ten minutes left on the lease.
 The smoke command opens a separate short-lived feed socket and was not run
-during this live rollout. The GitHub release is left to the human maintainer.
+during this live rollout.
+
+After the runtime upgrade, the US Central monitor completed ten scheduled runs
+between 06:52 and 07:02 UTC on 2026-10-09 with zero failures. The coordinator
+recorded two renewals and zero round errors during that watch. The latest
+heartbeat transaction
+`0x67f31a641c012e1e71fe97052469a2bc30d6f896e15125b65866ec0e2f84bf2b`
+succeeded in Robinhood block 83,964,478. At 07:02 UTC, all three observers
+were healthy, the feed reported `isUp=true`, status and heartbeat sequence `3`,
+`latestRoundData.answer=0`, and a lease through 07:15:15 UTC.
+
+The GitHub release is left to the human maintainer.
