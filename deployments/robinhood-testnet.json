@@ -3,7 +3,7 @@
   "name": "robinhood-testnet",
   "source": {
     "repository": "https://github.com/EqualFiLabs/statics-oracle",
-    "commit": "29029600be94bc3497347d80bbf9e5172b2335df"
+    "commit": "c0317749ee7bf1f26833eecf7ef38ec8377d7a15"
   },
   "chains": {
     "ethereum": {
@@ -23,14 +23,14 @@
   },
   "contracts": {
     "reporter": {
-      "address": "0x116823FAc37F9fCf836d7608aa44811Ec249c05D",
-      "deploymentTransaction": "0xccf70d6ae6e26b1fb7a5b2d16a8b4cec9a99ffd6c7fa7a06b307cfd95e7c4cdf",
-      "runtimeCodeHash": "0x1b01eda730cbf2dec901ffb2038afa6e5b315e7b65a63a0113ff01473963c68b"
+      "address": "0x36A0d2FFBb1322D7f000D09BA419B7F7b7295c20",
+      "deploymentTransaction": "0x6bd7e835decf7c4e1a5d1318f31d41c73c56ea780f986d4a210cf1b29375cf3d",
+      "runtimeCodeHash": "0xf1337deb200cbca50f6a762e1a3a77dad57dbb86d2627b06e3fd1f0d7534b2c8"
     },
     "feed": {
-      "address": "0x6cF8527F2C3aF72fa86E825c2e64de0f779d5F04",
-      "deploymentTransaction": "0x222a68e0c59a83fe869fd7d4c16582908d594d4378a017a4637810b3c64eb8c1",
-      "runtimeCodeHash": "0x2a9a8ece5a82e820ddf29f2e3ae9cd0926ca553f7d759f3953b327d242186b81"
+      "address": "0x265246C5b006C2bc7D19A482e7767FfFa8F2f0B2",
+      "deploymentTransaction": "0x0e73606ce1c587ce4a1e4f3c30989370f1b133532470a042c7486165f7673344",
+      "runtimeCodeHash": "0x18905e0f72fa66a097eef1d4f522b9a4e2be0ecfb088e02c1bf614d8d4de4ee3"
     }
   },
   "configuration": {
@@ -49,8 +49,8 @@
     "reserveMessages": 4
   },
   "transactions": {
-    "funding": "0x5b9f3f74538576f2e2ea173ebfa62889c6a158f3f927fbcb6521493a41aac38a",
-    "initialization": "0xb7145d0643f7cea7b199ebcee2b5107b65cdd6ae4eb5197e00b74253af2ac16a"
+    "funding": "0x7dc3871e521eb23d3619ac7e3081d18e60d3b842cf59b92826be53a7df9f5cc3",
+    "initialization": "0xdcb7009bda14d47fab8d684938d2c3c9c848b8cf5189030a34135cc8c22adf4d"
   },
   "services": {
     "pollIntervalMs": 30000,
