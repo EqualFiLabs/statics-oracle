@@ -19,7 +19,9 @@ import {
   normalizeHeartbeat,
   normalizeStatusReport,
   parsePrivateKey,
+  requireFreshHeartbeatSample,
   requireEnv,
+  selectReferenceHead,
   serializeBigInts,
   validateCrossChainState,
   validateHeartbeat,
@@ -43,7 +45,6 @@ const authToken = validateAuthToken(requireEnv("OBSERVER_AUTH_TOKEN"), "OBSERVER
 if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new Error("OBSERVER_PORT is invalid");
 if (!Number.isFinite(pollInterval) || pollInterval <= 0) throw new Error("POLL_INTERVAL_MS must be positive");
 const tracker = new AvailabilityTracker();
-let lastSample;
 let lastSignedStatusSequence = -1n;
 let lastSignedStatusHealthy;
 
@@ -82,19 +83,23 @@ async function sampleAvailability() {
   try {
     const directHead = await readSequencerFeedHead(directFeedUrl);
     const directReferenceBlock = await waitForBlock(robinhoodRpcUrl, directHead.number);
-    const referenceHead = await getBlock(robinhoodRpcUrl);
+    const referenceHead = selectReferenceHead(
+      directReferenceBlock,
+      await getBlock(robinhoodRpcUrl),
+    );
     const now = BigInt(Math.floor(Date.now() / 1_000));
     validateObservedHeads({ directHead, referenceHead, directReferenceBlock, now });
-    lastSample = { directHead, directReferenceBlock, referenceHead };
     tracker.record(true);
+    return { directHead, directReferenceBlock, referenceHead };
   } catch (error) {
     tracker.record(false, Date.now(), error);
+    return undefined;
   }
 }
 
 async function signHeartbeat(rawHeartbeat) {
-  if (tracker.state !== ObserverState.HEALTHY || !lastSample) throw new Error("observer is not healthy");
   const heartbeat = normalizeHeartbeat(rawHeartbeat);
+  const sample = await requireFreshHeartbeatSample(sampleAvailability, tracker);
   const [version, statusSequence, lastBlock, authorized, l1Version, l1StatusSequence] =
     await Promise.all([
       l2Client.readContract({ address: feedAddress, abi: feedAbi, functionName: "observerSetVersion" }),
@@ -125,7 +130,7 @@ async function signHeartbeat(rawHeartbeat) {
     heartbeat,
     expectedObserverSetVersion: version,
     expectedStatusSequence: statusSequence,
-    ...lastSample,
+    ...sample,
     referenceBlock,
     now: BigInt(Math.floor(Date.now() / 1_000)),
   });
@@ -191,7 +196,18 @@ createServer(async (request, response) => {
       return;
     }
     if (request.method === "GET" && request.url === "/health") {
-      respond(response, 200, { ok: true, observer: account.address, ...tracker.snapshot() });
+      respond(response, 200, {
+        ok: true,
+        observer: account.address,
+        configuration: {
+          ethereumChainId,
+          robinhoodChainId,
+          reporter: reporterAddress,
+          feed: feedAddress,
+          pollIntervalMs: pollInterval,
+        },
+        ...tracker.snapshot(),
+      });
       return;
     }
     if (request.method !== "POST") {

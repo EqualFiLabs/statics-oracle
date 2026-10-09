@@ -5,9 +5,23 @@ export const feedAbi = [
   { type: "function", name: "lastHeartbeatStatusSequence", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
   { type: "function", name: "lastObservedBlockNumber", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
   { type: "function", name: "healthyUntil", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
+  { type: "function", name: "availabilityReason", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
   { type: "function", name: "threshold", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
   { type: "function", name: "observers", stateMutability: "view", inputs: [], outputs: [{ type: "address[]" }] },
   { type: "function", name: "isObserver", stateMutability: "view", inputs: [{ name: "observer", type: "address" }], outputs: [{ type: "bool" }] },
+  {
+    type: "function",
+    name: "latestRoundData",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [
+      { name: "roundId", type: "uint80" },
+      { name: "answer", type: "int256" },
+      { name: "startedAt", type: "uint256" },
+      { name: "updatedAt", type: "uint256" },
+      { name: "answeredInRound", type: "uint80" },
+    ],
+  },
   {
     type: "function",
     name: "submitHeartbeat",
@@ -31,14 +45,22 @@ export const feedAbi = [
 ];
 
 export const reporterAbi = [
+  { type: "function", name: "owner", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
+  { type: "function", name: "inbox", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
   { type: "function", name: "childChainId", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
   { type: "function", name: "l2Feed", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
+  { type: "function", name: "l2RefundAddress", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
+  { type: "function", name: "statusGasLimit", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "configurationGasLimit", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "gasPriceBid", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
   { type: "function", name: "observerSetVersion", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
   { type: "function", name: "statusSequence", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
   { type: "function", name: "healthy", stateMutability: "view", inputs: [], outputs: [{ type: "bool" }] },
   { type: "function", name: "threshold", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
   { type: "function", name: "observers", stateMutability: "view", inputs: [], outputs: [{ type: "address[]" }] },
   { type: "function", name: "isObserver", stateMutability: "view", inputs: [{ name: "observer", type: "address" }], outputs: [{ type: "bool" }] },
+  { type: "function", name: "quoteStatusRetryable", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "quoteConfigurationRetryable", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
   {
     type: "function",
     name: "submitStatusReport",

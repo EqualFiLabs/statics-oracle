@@ -7,7 +7,10 @@
     "node": ">=22"
   },
   "scripts": {
-    "check": "node --check src/auth.mjs && node --check src/shared.mjs && node --check src/rpc.mjs && node --check src/quorum.mjs && node --check src/observer.mjs && node --check src/coordinator.mjs",
+    "check": "node --check src/auth.mjs && node --check src/shared.mjs && node --check src/rpc.mjs && node --check src/quorum.mjs && node --check src/deployment.mjs && node --check src/deployment-check.mjs && node --check src/observer.mjs && node --check src/coordinator.mjs",
+    "deployment:preflight": "node src/deployment-check.mjs preflight",
+    "deployment:smoke": "node src/deployment-check.mjs smoke",
+    "monitor": "node src/deployment-check.mjs monitor",
     "start:observer": "node src/observer.mjs",
     "start:coordinator": "node src/coordinator.mjs",
     "test": "node --test"

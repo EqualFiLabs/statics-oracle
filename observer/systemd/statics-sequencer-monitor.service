@@ -1,0 +1,24 @@
+[Unit]
+Description=Check Statics Robinhood sequencer signal deployment
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=statics-oracle
+Group=statics-oracle
+WorkingDirectory=/opt/equalfi/statics-oracle/observer
+EnvironmentFile=/etc/equalfi/statics-oracle/monitor.env
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/env node src/deployment-check.mjs monitor
+UMask=0077
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+RestrictSUIDSGID=true
+LockPersonality=true

@@ -1,4 +1,10 @@
 // SPDX-License-Identifier: MIT
+// ============================================================================
+//                                 EqualFi Labs
+//                          https://equalfi.org
+//                       https://staticsprotocol.com
+//                           mhooft@equalfilabs.com
+// ============================================================================
 pragma solidity ^0.8.24;
 
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
@@ -6,6 +12,7 @@ import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import { IAggregatorV3 } from "src/interfaces/IAggregatorV3.sol";
+import { IArbSys } from "src/interfaces/IArbSys.sol";
 import { AddressAliasHelper } from "src/libraries/AddressAliasHelper.sol";
 
 /// @notice Fail-closed Robinhood sequencer signal anchored to Ethereum status transitions.
@@ -300,13 +307,16 @@ contract RobinhoodSequencerAvailabilityFeed is IAggregatorV3, EIP712 {
             revert ObservedBlockNotNewer(lastObservedBlockNumber, heartbeat.observedBlockNumber);
         }
         uint256 observedBlockNumber = heartbeat.observedBlockNumber;
-        if (observedBlockNumber >= block.number) {
-            revert ObservedBlockNotFinalized(heartbeat.observedBlockNumber, block.number);
+        // Arbitrum block.number follows the parent chain; heartbeat blocks are L2 blocks.
+        IArbSys arbSys = IArbSys(address(100));
+        uint256 currentBlockNumber = arbSys.arbBlockNumber();
+        if (observedBlockNumber >= currentBlockNumber) {
+            revert ObservedBlockNotFinalized(heartbeat.observedBlockNumber, currentBlockNumber);
         }
-        if (block.number - observedBlockNumber > MAX_BLOCK_LAG) {
-            revert ObservedBlockTooOld(heartbeat.observedBlockNumber, block.number);
+        if (currentBlockNumber - observedBlockNumber > MAX_BLOCK_LAG) {
+            revert ObservedBlockTooOld(heartbeat.observedBlockNumber, currentBlockNumber);
         }
-        bytes32 canonicalHash = blockhash(observedBlockNumber);
+        bytes32 canonicalHash = arbSys.arbBlockHash(observedBlockNumber);
         if (
             heartbeat.observedBlockHash == bytes32(0)
                 || canonicalHash != heartbeat.observedBlockHash

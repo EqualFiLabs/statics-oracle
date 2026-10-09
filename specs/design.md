@@ -1082,6 +1082,30 @@ The primary coordinator collects evidence immediately. A backup coordinator wait
 reads L1 and L2 state and collects fresh block evidence and signatures. The delay never ages a
 previously collected block proof toward the L2 `blockhash` retention boundary.
 
+## Deployment Evidence
+
+The sequencer signal uses a public deployment manifest that binds the exact source commit, chain
+pair, deployer addresses, owner, refund address, sorted observer set, threshold, retryable gas
+configuration, contract addresses, transaction hashes, and runtime code hashes. Secret RPC URLs,
+private keys, and observer bearer tokens remain outside the artifact.
+
+A read-only preflight verifies the exact checkout commit, both chain IDs, delayed-inbox bytecode,
+deployer gas balances, direct-feed and independent-RPC block agreement, and static configuration.
+After the two contracts exist, the same preflight additionally verifies their runtime bytecode and
+constructor state before the reporter can be initialized.
+
+Initialization funding covers the configuration retryable plus a reserve of at least four times
+the larger current status or configuration quote, with reviewed headroom for fee movement. The
+one-time initializer rejects a wrong child chain, an already initialized reporter, or an
+insufficient reserve at simulation. The post-deployment smoke check re-evaluates the reserve using
+then-current quotes.
+
+The post-deployment smoke check requires successful deployment and initialization receipts, exact
+runtime code hashes, matching L1 and L2 versions and sequences, healthy manifest observers, a
+healthy heartbeat with more than ten minutes remaining, and the configured retryable reserve.
+The same fail-closed check runs under a scheduled service monitor. None of these read-only checks
+loads a deployment or signing private key.
+
 When down: `SEQUENCER_DOWN`.
 
 When back up:

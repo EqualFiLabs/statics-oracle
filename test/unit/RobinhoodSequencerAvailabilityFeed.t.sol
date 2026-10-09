@@ -8,6 +8,34 @@ import { StaticsOracle } from "src/StaticsOracle.sol";
 import { IStaticsOracle } from "src/interfaces/IStaticsOracle.sol";
 import { OracleFeedTestMock, OracleTokenTestMock } from "test/mocks/OracleTestMocks.sol";
 
+contract ArbSysFeedTestMock {
+    bool internal overridden;
+    uint256 internal currentBlockNumber;
+    uint256 internal observedBlockNumber;
+    bytes32 internal observedBlockHash;
+
+    function setBlock(
+        uint256 current,
+        uint256 observed,
+        bytes32 hash
+    ) external {
+        overridden = true;
+        currentBlockNumber = current;
+        observedBlockNumber = observed;
+        observedBlockHash = hash;
+    }
+
+    function arbBlockNumber() external view returns (uint256) {
+        return overridden ? currentBlockNumber : block.number;
+    }
+
+    function arbBlockHash(
+        uint256 number
+    ) external view returns (bytes32) {
+        return overridden && number == observedBlockNumber ? observedBlockHash : blockhash(number);
+    }
+}
+
 contract RobinhoodSequencerAvailabilityFeedTest is Test {
     uint256 internal constant KEY_A = 0xA11CE;
     uint256 internal constant KEY_B = 0xB0B;
@@ -23,6 +51,8 @@ contract RobinhoodSequencerAvailabilityFeedTest is Test {
         vm.chainId(4_663);
         vm.warp(10 days);
         vm.roll(1_000);
+        ArbSysFeedTestMock arbSys = new ArbSysFeedTestMock();
+        vm.etch(address(100), address(arbSys).code);
         keys.push(KEY_A);
         keys.push(KEY_B);
         keys.push(KEY_C);
@@ -60,6 +90,26 @@ contract RobinhoodSequencerAvailabilityFeedTest is Test {
         assertEq(feed.healthyUntil(), heartbeat.validUntil);
         assertEq(feed.recoveredAt(), block.timestamp);
         _assertRound(2, 0, block.timestamp, block.timestamp);
+    }
+
+    function test_HeartbeatUsesL2BlockNumberWhenParentBlockNumberDiffers() external {
+        _configure(1, 0);
+        _status(1, true);
+        bytes32 hash = keccak256("L2 block 1199");
+        ArbSysFeedTestMock(address(100)).setBlock(1_200, 1_199, hash);
+        vm.roll(10);
+        RobinhoodSequencerAvailabilityFeed.Heartbeat memory heartbeat =
+            RobinhoodSequencerAvailabilityFeed.Heartbeat({
+                observerSetVersion: 1,
+                statusSequence: 1,
+                observedBlockNumber: 1_199,
+                observedBlockHash: hash,
+                validUntil: uint64(block.timestamp + 15 minutes)
+            });
+
+        feed.submitHeartbeat(heartbeat, _sign(heartbeat, 2));
+        assertTrue(feed.isUp());
+        assertEq(feed.lastObservedBlockNumber(), 1_199);
     }
 
     function test_LeaseExpiresWithoutWriteAndRecoveryGetsFullGrace() external {

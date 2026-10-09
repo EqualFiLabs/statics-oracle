@@ -30,6 +30,8 @@ import {
   normalizeStatusReport,
   parsePrivateKey,
   requireEnv,
+  selectHeartbeatBlock,
+  selectReferenceHead,
   serializeBigInts,
   validateCrossChainState,
   validateHeartbeat,
@@ -206,14 +208,15 @@ async function renewHeartbeat() {
   });
   const now = BigInt(Math.floor(Date.now() / 1_000));
   if (!heartbeatDue(healthyUntil, heartbeatStatusSequence, statusSequence, now)) return;
-  if (directHead.number === 0n) throw new Error("sequencer feed returned genesis");
-  const targetBlock = directHead.number - 1n;
-  if (targetBlock <= lastBlock) throw new Error("no newer mutually observable block");
+  const targetBlock = selectHeartbeatBlock(directHead.number, lastBlock);
   const [directReferenceBlock, referenceBlock] = await Promise.all([
     waitForBlock(robinhoodRpcUrl, directHead.number),
     waitForBlock(robinhoodRpcUrl, targetBlock),
   ]);
-  const referenceHead = await getBlock(robinhoodRpcUrl);
+  const referenceHead = selectReferenceHead(
+    directReferenceBlock,
+    await getBlock(robinhoodRpcUrl),
+  );
   const heartbeat = normalizeHeartbeat({
     observerSetVersion: version,
     statusSequence,

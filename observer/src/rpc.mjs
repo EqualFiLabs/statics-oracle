@@ -70,24 +70,23 @@ export function parseSequencerFeedMessage(data) {
 export async function readSequencerFeedHead(url, timeoutMs = 8_000) {
   return await new Promise((resolve, reject) => {
     const socket = new WebSocket(url);
-    const timeout = setTimeout(() => {
-      socket.close();
-      reject(new Error("sequencer feed timed out"));
-    }, timeoutMs);
-
-    const fail = (error) => {
+    let settled = false;
+    const finish = (result, value) => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timeout);
-      socket.close();
-      reject(error);
+      socket.onerror = null;
+      socket.onmessage = null;
+      try { socket.close(); } catch { /* already closed */ }
+      result(value);
     };
-    socket.onerror = () => fail(new Error("sequencer feed connection failed"));
+    const timeout = setTimeout(() => finish(reject, new Error("sequencer feed timed out")), timeoutMs);
+    socket.onerror = () => finish(reject, new Error("sequencer feed connection failed"));
     socket.onmessage = (event) => {
       try {
-        clearTimeout(timeout);
-        socket.close();
-        resolve(parseSequencerFeedMessage(event.data));
+        finish(resolve, parseSequencerFeedMessage(event.data));
       } catch (error) {
-        fail(error instanceof Error ? error : new Error("invalid sequencer feed message"));
+        finish(reject, error instanceof Error ? error : new Error("invalid sequencer feed message"));
       }
     };
   });

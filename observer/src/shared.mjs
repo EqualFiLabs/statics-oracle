@@ -1,4 +1,5 @@
 export const POLL_INTERVAL_MS = 30_000;
+export const HEARTBEAT_BLOCK_MARGIN = 16n;
 export const HEARTBEAT_INTERVAL_SECONDS = 5n * 60n;
 export const LEASE_SECONDS = 15n * 60n;
 export const STATUS_VALIDITY_SECONDS = 5n * 60n;
@@ -49,6 +50,31 @@ export class AvailabilityTracker {
   }
 }
 
+export async function requireFreshHeartbeatSample(sample, tracker) {
+  const latest = await sample();
+  if (!latest || tracker.state !== ObserverState.HEALTHY) {
+    throw new Error("observer is not healthy");
+  }
+  return latest;
+}
+
+export function selectHeartbeatBlock(directHeadNumber, lastAcceptedBlock) {
+  if (directHeadNumber <= HEARTBEAT_BLOCK_MARGIN) {
+    throw new Error("sequencer feed has no confirmed block");
+  }
+  const target = directHeadNumber - HEARTBEAT_BLOCK_MARGIN;
+  if (target <= lastAcceptedBlock) {
+    throw new Error("no newer mutually observable block");
+  }
+  return target;
+}
+
+export function selectReferenceHead(verifiedDirectBlock, latestRpcHead) {
+  return latestRpcHead.number >= verifiedDirectBlock.number
+    ? latestRpcHead
+    : verifiedDirectBlock;
+}
+
 export async function afterBackupDelay({ role, delayMs, action, sleep = defaultSleep }) {
   if (role === "backup") await sleep(delayMs);
   return await action();
@@ -96,9 +122,14 @@ export function normalizeStatusReport(value) {
 }
 
 export function serializeBigInts(value) {
-  return Object.fromEntries(
-    Object.entries(value).map(([key, item]) => [key, typeof item === "bigint" ? item.toString() : item]),
-  );
+  if (typeof value === "bigint") return value.toString();
+  if (Array.isArray(value)) return value.map(serializeBigInts);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, serializeBigInts(item)]),
+    );
+  }
+  return value;
 }
 
 export function validateHeartbeat({

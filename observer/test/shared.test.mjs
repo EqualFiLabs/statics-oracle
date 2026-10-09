@@ -3,12 +3,17 @@ import test from "node:test";
 
 import {
   AvailabilityTracker,
+  HEARTBEAT_BLOCK_MARGIN,
   LEASE_SECONDS,
   ObserverState,
+  requireFreshHeartbeatSample,
+  selectHeartbeatBlock,
+  selectReferenceHead,
   afterBackupDelay,
   heartbeatDue,
   normalizeHeartbeat,
   normalizeStatusReport,
+  serializeBigInts,
   validateCrossChainState,
   validateHeartbeat,
   validateHeartbeatSigningProgress,
@@ -18,6 +23,17 @@ import {
 
 const hash = `0x${"11".repeat(32)}`;
 const now = 1_000n;
+
+test("serializes nested preflight quantities without losing structure", () => {
+  const report = {
+    ethereum: { balance: 10n, chainId: 11_155_111 },
+    robinhood: { heads: [2n, { number: 3n }], balance: null },
+  };
+  assert.deepEqual(serializeBigInts(report), {
+    ethereum: { balance: "10", chainId: 11_155_111 },
+    robinhood: { heads: ["2", { number: "3" }], balance: null },
+  });
+});
 
 function validHeartbeatInput() {
   return {
@@ -60,6 +76,51 @@ test("requires three consecutive samples for impairment and recovery", () => {
 test("restart starts unknown", () => {
   const tracker = new AvailabilityTracker();
   assert.equal(tracker.snapshot().state, ObserverState.UNKNOWN);
+});
+
+test("heartbeat signing refreshes a cached sequencer head before validation", async () => {
+  const tracker = new AvailabilityTracker();
+  for (let index = 0; index < 3; index += 1) tracker.record(true);
+  const input = validHeartbeatInput();
+  const cached = { ...input, directHead: { ...input.directHead, number: 97n } };
+  assert.throws(() => validateHeartbeat(cached), /ahead of the sequencer feed/);
+
+  let sampleCount = 0;
+  const sample = await requireFreshHeartbeatSample(async () => {
+    sampleCount += 1;
+    return {
+      directHead: input.directHead,
+      directReferenceBlock: input.directReferenceBlock,
+      referenceHead: input.referenceHead,
+    };
+  }, tracker);
+  assert.equal(sampleCount, 1);
+  assert.doesNotThrow(() => validateHeartbeat({ ...input, ...sample }));
+  await assert.rejects(
+    requireFreshHeartbeatSample(async () => undefined, tracker),
+    /observer is not healthy/,
+  );
+});
+
+test("heartbeat selection leaves block confirmation margin and advances the accepted block", () => {
+  assert.equal(HEARTBEAT_BLOCK_MARGIN, 16n);
+  assert.equal(selectHeartbeatBlock(120n, 100n), 104n);
+  assert.throws(() => selectHeartbeatBlock(116n, 100n), /no newer mutually observable block/);
+  assert.throws(() => selectHeartbeatBlock(16n, 0n), /no confirmed block/);
+});
+
+test("verified feed block remains the reference when latest RPC backend lags", () => {
+  const verified = { number: 120n, hash: `0x${"11".repeat(32)}`, timestamp: now };
+  const lagging = { number: 118n, hash: `0x${"22".repeat(32)}`, timestamp: now - 1n };
+  const caughtUp = { number: 121n, hash: `0x${"33".repeat(32)}`, timestamp: now + 1n };
+  assert.equal(selectReferenceHead(verified, lagging), verified);
+  assert.equal(selectReferenceHead(verified, caughtUp), caughtUp);
+  assert.doesNotThrow(() => validateObservedHeads({
+    directHead: verified,
+    directReferenceBlock: verified,
+    referenceHead: selectReferenceHead(verified, lagging),
+    now,
+  }));
 });
 
 test("backup delay happens before collecting fresh round evidence", async () => {

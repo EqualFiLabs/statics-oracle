@@ -270,6 +270,14 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - State that this is not a canonical Robinhood or Chainlink-managed feed.
     - _Requirements: 7.1-7.8, 14.1-14.7_
 
+  - [x] 6.8 Add repeatable sequencer deployment bundle
+    - Add a public manifest for source, chain, address, transaction, bytecode, observer-set, and retryable configuration evidence.
+    - Add fail-closed read-only preflight and post-deployment smoke checks.
+    - Add a funding and one-time initialization script that preserves a four-message retryable reserve.
+    - Add hardened observer, coordinator, and scheduled-monitor service definitions.
+    - Document explorer verification, failure drills, evidence handoff, and replacement behavior.
+    - _Requirements: 7.18-7.20, 13.10_
+
 - [x] 7. Implement oracle price evaluation
   - [x] 7.1 Implement `_evaluatePrice`
     - Create an internal non-reverting evaluation path returning `PriceData`.

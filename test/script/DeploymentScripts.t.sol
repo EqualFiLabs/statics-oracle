@@ -12,9 +12,13 @@ import {
     DeployRobinhoodSequencerReporterL1
 } from "script/DeployRobinhoodSequencerReporterL1.s.sol";
 import { DeployStaticsOracle } from "script/DeployStaticsOracle.s.sol";
+import {
+    InitializeRobinhoodSequencerSignal
+} from "script/InitializeRobinhoodSequencerSignal.s.sol";
 import { RobinhoodSequencerAvailabilityFeed } from "src/RobinhoodSequencerAvailabilityFeed.sol";
 import { RobinhoodSequencerReporterL1 } from "src/RobinhoodSequencerReporterL1.sol";
 import { StaticsOracle } from "src/StaticsOracle.sol";
+import { IArbitrumDelayedInbox } from "src/interfaces/IArbitrumDelayedInbox.sol";
 import { IStaticsOracle } from "src/interfaces/IStaticsOracle.sol";
 import { OracleFeedTestMock, OracleTokenTestMock } from "test/mocks/OracleTestMocks.sol";
 
@@ -22,13 +26,114 @@ contract DeploymentScriptsTest is Test {
     DeployStaticsOracle internal deployer;
     DeployRobinhoodSequencerAvailabilityFeed internal sequencerDeployer;
     DeployRobinhoodSequencerReporterL1 internal reporterDeployer;
+    InitializeRobinhoodSequencerSignal internal sequencerInitializer;
     ConfigureStaticsOracle internal configurator;
 
     function setUp() external {
         deployer = new DeployStaticsOracle();
         sequencerDeployer = new DeployRobinhoodSequencerAvailabilityFeed();
         reporterDeployer = new DeployRobinhoodSequencerReporterL1();
+        sequencerInitializer = new InitializeRobinhoodSequencerSignal();
         configurator = new ConfigureStaticsOracle();
+    }
+
+    function test_SequencerInitializationFundsTicketAndReserve() external {
+        vm.chainId(11_155_111);
+        address[] memory observers = _observers();
+        RobinhoodSequencerReporterL1 reporter = reporterDeployer.deploy(
+            address(sequencerInitializer), observers, 2, address(this), 200_000, 400_000, 1
+        );
+        uint256 submissionFee = 100;
+        vm.mockCall(
+            reporter.SEPOLIA_DELAYED_INBOX(),
+            abi.encodeWithSelector(IArbitrumDelayedInbox.calculateRetryableSubmissionFee.selector),
+            abi.encode(submissionFee)
+        );
+        vm.mockCall(
+            reporter.SEPOLIA_DELAYED_INBOX(),
+            abi.encodeWithSelector(
+                IArbitrumDelayedInbox.createRetryableTicketNoRefundAliasRewrite.selector
+            ),
+            abi.encode(uint256(77))
+        );
+
+        uint256 required = sequencerInitializer.requiredPreInitializationBalance(reporter, 4);
+        vm.deal(address(sequencerInitializer), required);
+        uint256 ticketId = sequencerInitializer.fundAndInitialize(
+            reporter, address(0xFEE1), 46_630, required, 4
+        );
+
+        assertEq(ticketId, 77);
+        assertEq(reporter.l2Feed(), address(0xFEE1));
+        assertEq(
+            address(reporter).balance,
+            4 * reporter.quoteConfigurationRetryable(),
+            "four maximum retryable quotes remain after initialization"
+        );
+    }
+
+    function test_SequencerInitializationRejectsUnderfundingAndWrongChildChain() external {
+        vm.chainId(11_155_111);
+        RobinhoodSequencerReporterL1 reporter = reporterDeployer.deploy(
+            address(sequencerInitializer), _observers(), 2, address(this), 200_000, 400_000, 1
+        );
+        vm.mockCall(
+            reporter.SEPOLIA_DELAYED_INBOX(),
+            abi.encodeWithSelector(IArbitrumDelayedInbox.calculateRetryableSubmissionFee.selector),
+            abi.encode(uint256(100))
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                InitializeRobinhoodSequencerSignal.UnexpectedChildChain.selector, 4_663, 46_630
+            )
+        );
+        sequencerInitializer.fundAndInitialize(reporter, address(0xFEE1), 4_663, 0, 4);
+
+        uint256 required = sequencerInitializer.requiredPreInitializationBalance(reporter, 4);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                InitializeRobinhoodSequencerSignal.InsufficientReporterFunding.selector,
+                required - 1,
+                required
+            )
+        );
+        sequencerInitializer.fundAndInitialize(reporter, address(0xFEE1), 46_630, required - 1, 4);
+    }
+
+    function test_SequencerInitializationValidatesReviewedReporterConfiguration() external {
+        vm.chainId(11_155_111);
+        address[] memory observers = _observers();
+        RobinhoodSequencerReporterL1 reporter = reporterDeployer.deploy(
+            address(sequencerInitializer), observers, 2, address(this), 200_000, 400_000, 1
+        );
+        sequencerInitializer.validateReporterConfiguration(
+            reporter,
+            address(sequencerInitializer),
+            observers,
+            2,
+            address(this),
+            200_000,
+            400_000,
+            1
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                InitializeRobinhoodSequencerSignal.ReporterConfigurationMismatch.selector,
+                "gasPriceBid"
+            )
+        );
+        sequencerInitializer.validateReporterConfiguration(
+            reporter,
+            address(sequencerInitializer),
+            observers,
+            2,
+            address(this),
+            200_000,
+            400_000,
+            2
+        );
     }
 
     function test_SequencerSignalDeploymentSeparatesL1AuthorityAndL2Feed() external {
@@ -210,6 +315,13 @@ contract DeploymentScriptsTest is Test {
             kind: kind,
             checkOraclePause: false
         });
+    }
+
+    function _observers() internal pure returns (address[] memory observers) {
+        observers = new address[](3);
+        observers[0] = address(0x1000);
+        observers[1] = address(0x2000);
+        observers[2] = address(0x3000);
     }
 
     function _sequencerManifest(

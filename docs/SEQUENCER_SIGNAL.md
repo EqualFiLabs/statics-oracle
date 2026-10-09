@@ -144,6 +144,10 @@ SEQUENCER_L2_GAS_PRICE_BID
 
 The L2 deployment script requires `SEQUENCER_L1_REPORTER`.
 
+The repeatable preflight, funding, initialization, service supervision, smoke-test, monitoring,
+failure-drill, and artifact procedure is defined in [Sequencer signal deployment](SEQUENCER_DEPLOYMENT.md).
+The tooling performs no implicit broadcast and never reads deployment private keys.
+
 ## Monitoring
 
 Alert on:

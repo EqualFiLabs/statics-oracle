@@ -185,6 +185,9 @@ An asset whose token/feed pair has been identified but SHALL NOT become enabled 
 15. OBSERVERS and coordinators SHALL refuse heartbeat renewal while the Robinhood observer-set version or status sequence differs from the authoritative Ethereum reporter state.
 16. OBSERVER signing endpoints SHALL require a distinct authentication secret per observer and SHALL be operated only across an authenticated private network or encrypted overlay.
 17. A BACKUP coordinator SHALL complete its delay before reading round state or collecting heartbeat signatures, so the canonical block evidence remains fresh when failover submission begins.
+18. BEFORE initialization, deployment tooling SHALL fail closed on a wrong chain pair, delayed inbox, source commit, observer ordering, threshold, contract binding, runtime bytecode hash, gas configuration, or retryable reserve.
+19. THE deployment artifact SHALL record public addresses, transaction hashes, runtime bytecode hashes, observer-set hash, and reviewed configuration without containing RPC URLs, authentication secrets, or private keys.
+20. POST-DEPLOYMENT smoke and monitoring checks SHALL verify direct-feed and RPC agreement, observer health, L1 and L2 state synchronization, healthy lease duration, retryable reserve, and deployed bytecode.
 
 ---
 

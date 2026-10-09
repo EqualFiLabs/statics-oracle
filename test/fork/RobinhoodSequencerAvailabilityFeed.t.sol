@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
+
 import { RobinhoodSequencerAvailabilityFeed } from "src/RobinhoodSequencerAvailabilityFeed.sol";
+import { IArbSys } from "src/interfaces/IArbSys.sol";
 import { RobinhoodForkBase } from "test/fork/RobinhoodForkBase.sol";
 
 contract RobinhoodSequencerAvailabilityFeedForkTest is RobinhoodForkBase {
@@ -28,8 +31,20 @@ contract RobinhoodSequencerAvailabilityFeedForkTest is RobinhoodForkBase {
         feed.applyConfiguration(1, 0, _observers, 2, uint64(block.timestamp));
         vm.prank(feed.aliasedL1Reporter());
         feed.applyStatus(1, 1, true, uint64(block.timestamp));
-        uint64 observedBlockNumber = uint64(block.number - 1);
-        bytes32 observedBlockHash = blockhash(observedBlockNumber);
+        IArbSys arbSys = IArbSys(address(100));
+        uint64 observedBlockNumber = uint64(arbSys.arbBlockNumber() - 1);
+        string memory blockJson = vm.rpcJson(
+            "eth_getBlockByNumber",
+            string.concat("[\"", _rpcQuantity(observedBlockNumber), "\",false]")
+        );
+        bytes32 observedBlockHash = vm.parseJsonBytes32(blockJson, ".hash");
+        // Foundry forks do not execute ArbSys.arbBlockHash; supply the RPC-confirmed block hash.
+        vm.mockCall(
+            address(arbSys),
+            abi.encodeCall(IArbSys.arbBlockHash, (observedBlockNumber)),
+            abi.encode(observedBlockHash)
+        );
+        assertNotEq(observedBlockNumber, block.number - 1);
         assertNotEq(observedBlockHash, bytes32(0));
 
         RobinhoodSequencerAvailabilityFeed.Heartbeat memory heartbeat =
@@ -56,6 +71,20 @@ contract RobinhoodSequencerAvailabilityFeedForkTest is RobinhoodForkBase {
     ) private pure returns (bytes memory) {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
         return abi.encodePacked(r, s, v);
+    }
+
+    function _rpcQuantity(
+        uint256 value
+    ) private pure returns (string memory) {
+        bytes memory padded = bytes(Strings.toHexString(value));
+        if (padded.length <= 3 || padded[2] != "0") return string(padded);
+        bytes memory compact = new bytes(padded.length - 1);
+        compact[0] = "0";
+        compact[1] = "x";
+        for (uint256 i = 3; i < padded.length; ++i) {
+            compact[i - 1] = padded[i];
+        }
+        return string(compact);
     }
 
     function _sortKeysByAddress(
