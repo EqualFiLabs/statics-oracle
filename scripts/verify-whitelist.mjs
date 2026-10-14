@@ -92,6 +92,13 @@ async function main() {
     if (!addressEqual(row.feed, requested.feed)) {
       hardFailures.push(`${requested.symbol} approved feed changed: ${row.feed} != ${requested.feed}`);
     }
+    if ((row.l1Origin ?? null)?.toLowerCase() !== (requested.l1Origin ?? null)?.toLowerCase()) {
+      hardFailures.push(`${requested.symbol} approved L1 bridge origin changed`);
+    }
+    if (requested.l1Origin &&
+        (row.verification?.bridgeOriginVerified !== true || row.verification?.bridgeAddressVerified !== true)) {
+      hardFailures.push(`${requested.symbol} bridge provenance verification missing`);
+    }
     if (row.kind !== requested.kind) hardFailures.push(`${requested.symbol} kind changed`);
     if (row.status !== requested.status) hardFailures.push(`${requested.symbol} lifecycle target changed`);
     if (row.tokenDecimals !== requested.tokenDecimals) {
@@ -152,7 +159,8 @@ async function main() {
       continue;
     }
     const sourceFeed = exactFeeds[0];
-    if (sourceFeed.docs?.baseAsset !== requested.feedBase) {
+    if (sourceFeed.docs?.baseAsset !== requested.feedBase &&
+        sourceFeed.docs?.baseAssetEntityId !== `crypto-${requested.feedBase}`) {
       hardFailures.push(`${requested.symbol} Chainlink base identity changed to ${sourceFeed.docs?.baseAsset}`);
     }
     if (sourceFeed.decimals !== row.feedDecimals) {
@@ -204,8 +212,8 @@ async function main() {
   for (const row of manifest.assets.filter((asset) => asset.status === "CANDIDATE")) {
     reviewWarnings.push(`${row.symbol} remains CANDIDATE pending wrapper provenance, liquidity, and risk review`);
   }
-  if (manifest.sequencer?.verified !== true || !manifest.sequencer?.feed) {
-    reviewWarnings.push("hybrid sequencer deployment and recovery grace policy remain unresolved");
+  if (manifest.sequencer?.verified !== true || !manifest.sequencer?.gracePeriod) {
+    reviewWarnings.push("sequencer review and recovery grace policy remain unresolved");
   }
 
   const manifestBytesAfter = readFileSync(options.manifest);

@@ -90,7 +90,7 @@ An asset whose token/feed pair has been identified but SHALL NOT become enabled 
 4. THE Oracle System SHALL NOT authorize an asset based solely on symbol, name, ticker, DEX market, or economic equivalence.
 5. WHEN an unapproved token shares a symbol with an approved token, THE Oracle System SHALL treat the unapproved token as unsupported.
 6. WHEN two wrappers represent the same economic asset, THE Oracle System SHALL treat them as independent assets requiring independent token/feed bindings.
-7. THE initial approved and candidate bindings SHALL conform to Appendix A.
+7. THE initial approved bindings SHALL conform to Appendix A.
 
 ---
 
@@ -312,40 +312,67 @@ An asset whose token/feed pair has been identified but SHALL NOT become enabled 
 
 ---
 
-## Appendix A: Initial Asset Matrix
+## Appendix A: Approved Robinhood Asset Matrix
 
-### A.1 Enabled V1 Stock and ETF Assets
+### A.1 Enabled Stock Tokens and Tokenized ETFs
+
+Each token is an active Robinhood Stock Token in the Robinhood asset registry. Each feed is the exact Chainlink USD proxy selected for that token. SGOV and USAR use exact Chainlink entity IDs because those feed rows do not publish `baseAsset`. GLD uses the Chainlink feed whose metadata names the Robinhood token.
 
 | Asset | Type | Robinhood Chain Token | Chainlink USD Feed Proxy | Initial Status |
 |---|---|---|---|---|
 | AAPL | Stock | `0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9` | `0x6B22A786bAa607d76728168703a39Ea9C99f2cD0` | Enabled target |
-| NVDA | Stock | `0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC` | `0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15` | Enabled target |
-| MSFT | Stock | `0xe93237C50D904957Cf27E7B1133b510C669c2e74` | `0x45C3C877C15E6BA2EBB19eA114Ea508d14C1Af2E` | Enabled target |
-| GOOGL | Stock | `0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3` | `0xF6f373a037c30F0e5010d854385cA89185AE638b` | Enabled target |
-| AMZN | Stock | `0x12f190a9F9d7D37a250758b26824B97CE941bF54` | `0xD5a1508ceD74c084eBf3cBe853e2C968fB2a651C` | Enabled target |
-| META | Stock | `0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35` | `0x7C38C00C30BEe9378381E7B6135d7283356D71b1` | Enabled target |
-| TSLA | Stock | `0x322F0929c4625eD5bAd873c95208D54E1c003b2d` | `0x4A1166a659A55625345e9515b32adECea5547C38` | Enabled target |
 | AMD | Stock | `0x86923f96303D656E4aa86D9d42D1e57ad2023fdC` | `0x943A29E7ae51A4798823ca9eEd2ed533B2A22C72` | Enabled target |
-| PLTR | Stock | `0x894E1EC2D74FFE5AEF8Dc8A9e84686acCB964F2A` | `0x820ABedFF239034956B7A9d2F0a331f9F075eB4c` | Enabled target |
+| AMZN | Stock | `0x12f190a9F9d7D37a250758b26824B97CE941bF54` | `0xD5a1508ceD74c084eBf3cBe853e2C968fB2a651C` | Enabled target |
+| ASML | Stock | `0x47F93d52cBeC7C6D2CfC080e154002370a60dAEA` | `0xB4106147E8cce40b7d46124090d373A71b70f87D` | Enabled target |
+| BABA | Stock | `0xad25Ac6C84D497db898fa1E8387bf6Af3532a1c4` | `0x62Cc8F9b5f56a33c9C8A60c8B92779f523c4E984` | Enabled target |
+| CLSK | Stock | `0xcBB95BBF36099d34dA091dc6Fa6F49EfA257Cee3` | `0x810c12D3a554Bc47fd39597Fe3b3AAC4941F50eF` | Enabled target |
 | COIN | Stock | `0x6330D8C3178a418788dF01a47479c0ce7CCF450b` | `0xA3a468A452940B7D6b69991207B508c609a98Ef2` | Enabled target |
-| MSTR | Stock | `0xec262a75e413fAfD0dF80480274532C79D42da09` | `0x396118bdFB181e6240E74D243F266B061c0edc3D` | Enabled target |
 | CRCL | Stock | `0xdF0992E440dD0be65BD8439b609d6D4366bf1CB5` | `0x6652eDf64bA3731C4F2D3ce821A0Fb1f1f6b482a` | Enabled target |
+| CRWV | Stock | `0x5f10A1C971B69e47e059e1dC91901B59b3fB49C3` | `0xe1b3aABCAFAd1c94708dc1367dcfF8Aa4407487C` | Enabled target |
+| DELL | Stock | `0x941AE714EC6D8130c7B75d67160Ca08f1e7d11Dd` | `0x1C6c8cADBe02E19129c39dDB92281cE4c0bf206b` | Enabled target |
+| EWY | ETF | `0x7f0aBeF0C07280F82c6a08ead09dEd6BAE2C13Fc` | `0xEFdf54610B62A7753Ec30bDc380847c12D32e1D1` | Enabled target |
+| GLD | ETF | `0xC9a981FEE1F9DEc688bb123ccDeCc63D0deBFC4e` | `0x470A51258068043bd43dC0a56245625C9fE86eB0` | Enabled target |
+| GME | Stock | `0x1b0E319c6A659F002271B69dB8A7df2F911c153E` | `0x27C71df6A64fB476468EdF256CF72c038baB5B67` | Enabled target |
+| GOOGL | Stock | `0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3` | `0xF6f373a037c30F0e5010d854385cA89185AE638b` | Enabled target |
+| INTC | Stock | `0xc72b96e0E48ecd4DC75E1e45396e26300BC39681` | `0x3f390C5C24628Ac7C489515402235FeAD71D1913` | Enabled target |
+| IONQ | Stock | `0x558378E000D634A36593E338eBacdd6207640EfE` | `0x22EfeC4919baf55F360E0EDee4AbEB26DE4971eb` | Enabled target |
+| META | Stock | `0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35` | `0x7C38C00C30BEe9378381E7B6135d7283356D71b1` | Enabled target |
+| MSFT | Stock | `0xe93237C50D904957Cf27E7B1133b510C669c2e74` | `0x45C3C877C15E6BA2EBB19eA114Ea508d14C1Af2E` | Enabled target |
+| MSTR | Stock | `0xec262a75e413fAfD0dF80480274532C79D42da09` | `0x396118bdFB181e6240E74D243F266B061c0edc3D` | Enabled target |
+| MU | Stock | `0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD` | `0x425EEFdCf05ed6526C3cE61Af99429A228a6d596` | Enabled target |
+| NBIS | Stock | `0x9D9c6684F596F66a64C030B93A886D51Fd4D7931` | `0xE1D87B116Ba0fe898998f1D140339D1fA1E09705` | Enabled target |
+| NVDA | Stock | `0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC` | `0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15` | Enabled target |
 | ORCL | Stock | `0xb0992820E760d836549ba69BC7598b4af75dEE03` | `0x0e6a64a2B58A6693a531E6c555f3A5d042eEA844` | Enabled target |
-| SPY | ETF | `0x117cc2133c37B721F49dE2A7a74833232B3B4C0C` | `0x319724394D3A0e3669269846abE664Cd621f9f6A` | Enabled target |
+| PLTR | Stock | `0x894E1EC2D74FFE5AEF8Dc8A9e84686acCB964F2A` | `0x820ABedFF239034956B7A9d2F0a331f9F075eB4c` | Enabled target |
 | QQQ | ETF | `0xD5f3879160bc7c32ebb4dC785F8a4F505888de68` | `0x80901d846d5D7B030F26B480776EE3b29374C2ae` | Enabled target |
+| RGTI | Stock | `0x284358abc07F9359f19f4b5b4aC91901Be2597Ba` | `0x2A045cF1C49c61c166C036d2f06FA2D2d984f765` | Enabled target |
+| RKLB | Stock | `0x3b14C39E89D60D627b42a1A4CA45b5bb45Fc12e2` | `0x045477BF65Aef6f4F2386ad0164579e48381CC74` | Enabled target |
+| SGOV | ETF | `0x92FD66527192E3e61d4DDd13322Aa222DE86F9B5` | `0xa0DF4ee0fFf975306345875E3548Fcc519577A11` | Enabled target |
+| SLV | ETF | `0x411eFb0E7f985935DAec3D4C3ebaEa0d0AD7D89f` | `0x209b73908e92Ae021826eD79609845451Ecba2ce` | Enabled target |
+| SNDK | Stock | `0xB90A19fF0Af67f7779afF50A882A9CfF42446400` | `0xfb133Fa4B7b385802B693a293606682Df47109A3` | Enabled target |
+| SPCX | Stock | `0x4a0E65A3EcceC6dBe60AE065F2e7bb85Fae35eEa` | `0xB265810950ba6c5C0Ff821c9963014a56fD8Bffb` | Enabled target |
+| SPY | ETF | `0x117cc2133c37B721F49dE2A7a74833232B3B4C0C` | `0x319724394D3A0e3669269846abE664Cd621f9f6A` | Enabled target |
+| TSLA | Stock | `0x322F0929c4625eD5bAd873c95208D54E1c003b2d` | `0x4A1166a659A55625345e9515b32adECea5547C38` | Enabled target |
+| TSM | Stock | `0x58FfE4a942d3885bAa22D7520691F611EF09e7AA` | `0x874cF94aa8eC88Fd9560094dD065f2fB3E41Fc2F` | Enabled target |
+| USAR | Stock | `0xd917B029C761D264c6A312BBbcDA868658eF86a6` | `0xA994d3684e8400A6c8078226925779FdeE682DD9` | Enabled target |
+| USO | ETF | `0xa30FA36Db767ad9eD3f7a60fC79526fB4d56D344` | `0x75a9c76Ef439e2C7c2E5a34Ab105EcFe3766431c` | Enabled target |
 
-### A.2 Crypto Assets
+### A.2 Enabled Crypto and Stable Assets
 
-| Asset | Robinhood Chain Token | Chainlink USD Feed Proxy | Token Decimals | Initial Status |
-|---|---|---|---:|---|
-| WETH | `0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73` | `0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9` | 18 | Enabled target |
-| USDG | `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168` | `0x61B7e5650328764B076A108EFF5fa7282a1B9aD2` | 6 | Enabled target |
-| LINK | `0x492641f648a4986844848e0befe66d14817bce34` | `0xe86e3422Aa9B5e8ee9f3E41a63975bC387A8bce9` | 18 | Candidate |
-| WBTC | `0x6bac06600D220Ac5Ac281AD1f504D2Cf0F90F6e6` | `0x62107b0d3adA75fc1697fD342d99eed947a3aA5E` | 8 | Candidate |
-| cbBTC | `0xd3FCec4E6C6bF5D7369A912Dd52AB810F9b266d1` | `0x0009cD492adf8167f9eEBf1293556A673530a21a` | 8 | Candidate |
-| USDC | `0x80e0e24718dbFcad49ECAA6F1e6C89A190586cA8` | `0x9e6f4605992a899eE2999999F3Ec80C41F452546` | 6 | Candidate |
-| USDT | `0xE246BC49b0598d7Cd9f0eAD48B885034f1254380` | `0xbf3550B6fAe1671da7C238Af12e03Ac586BEf3B1` | 6 | Candidate |
-| wstETH | `0xcD26A6AA5BB008240A998E242F51232FE98B12Cb` | `0x3F5040B50FB37934573B210fE54B53a6F1A792E8` | 18 | Candidate |
+The seven canonical bridge tokens are bound to the stated Ethereum origin token through the Robinhood L2 Gateway Router. LINK uses Chainlink's official Robinhood token address. WETH and USDG use their documented Robinhood contracts. Oracle enablement does not establish trading liquidity.
+
+| Asset | Robinhood Chain Token | Chainlink USD Feed Proxy | Token Decimals | Ethereum Bridge Origin | Initial Status |
+|---|---|---|---:|---|---|
+| EURC | `0x697532723b423d38a6769ba2f804aec3faaf740b` | `0xfF2B10c1973eD10c841434f98e456d8f3a0D7DD8` | 6 | `0x1aBaEA1f7C830bD89Acc67eC4af516284b1bC33c` | Enabled target |
+| LINK | `0x492641f648a4986844848e0befe66d14817bce34` | `0xe86e3422Aa9B5e8ee9f3E41a63975bC387A8bce9` | 18 | — | Enabled target |
+| USDC | `0x80e0e24718dbFcad49ECAA6F1e6C89A190586cA8` | `0x9e6f4605992a899eE2999999F3Ec80C41F452546` | 6 | `0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48` | Enabled target |
+| USDG | `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168` | `0x61B7e5650328764B076A108EFF5fa7282a1B9aD2` | 6 | — | Enabled target |
+| USDS | `0x3830502883047dabc4ade46ef72e2bf9ab2d9b69` | `0x2D88D75b625633dCcd65d9d53BfDD3Aea2d8e84f` | 18 | `0xdC035D45d973E3EC169d2276DDab16f1e407384F` | Enabled target |
+| USDT | `0xE246BC49b0598d7Cd9f0eAD48B885034f1254380` | `0xbf3550B6fAe1671da7C238Af12e03Ac586BEf3B1` | 6 | `0xdAC17F958D2ee523a2206206994597C13D831ec7` | Enabled target |
+| WBTC | `0x6bac06600D220Ac5Ac281AD1f504D2Cf0F90F6e6` | `0x62107b0d3adA75fc1697fD342d99eed947a3aA5E` | 8 | `0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599` | Enabled target |
+| WETH | `0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73` | `0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9` | 18 | — | Enabled target |
+| cbBTC | `0xd3FCec4E6C6bF5D7369A912Dd52AB810F9b266d1` | `0x0009cD492adf8167f9eEBf1293556A673530a21a` | 8 | `0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf` | Enabled target |
+| wstETH | `0xcD26A6AA5BB008240A998E242F51232FE98B12Cb` | `0x3F5040B50FB37934573B210fE54B53a6F1A792E8` | 18 | `0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0` | Enabled target |
 
 ## Canonical References
 

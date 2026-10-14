@@ -81,7 +81,8 @@ npm test
 
 ## Whitelist generation
 
-The checked-in Robinhood Mainnet manifest is generated from the exact issue-approved
+The checked-in Robinhood Mainnet manifest contains 36 stock/ETF and 10 crypto/stable
+token-feed bindings. It is generated from the exact approved
 token/feed matrix, the canonical Robinhood and Chainlink directories, and block-pinned
 contract reads. Its lifecycle values are desired configuration, not evidence of deployment.
 
@@ -92,7 +93,8 @@ node scripts/generate-whitelist.mjs --block <verified-block>
 
 For byte-for-byte reproduction, also pass the checked-in `generatedAt` value through
 `--generated-at`. The generator fails on missing source rows, identity disagreement,
-missing bytecode, metadata mismatch, invalid rounds, stale answers, or paused stock oracles.
+missing bytecode, metadata mismatch, bridge-origin mismatch, invalid rounds, stale answers,
+or paused stock oracles. See `docs/robinhood-feed-coverage.md` for the feed inventory.
 
 Verify the checked-in manifest without modifying it:
 
@@ -101,8 +103,7 @@ node scripts/verify-whitelist.mjs
 ```
 
 Identity, missing-contract, decimal, description-hash, and invalid-round findings are hard
-failures. Non-identity directory metadata changes and unresolved candidate-risk gates are
-reported as review warnings. Source drift is never applied automatically. Pass `--block`
+failures. Non-identity directory metadata changes are reported as review warnings. Source drift is never applied automatically. Pass `--block`
 to reproduce a historical verification against an archive-capable RPC.
 
 Block-pinned fork tests read the checked-in manifest and skip when the RPC variable is absent:

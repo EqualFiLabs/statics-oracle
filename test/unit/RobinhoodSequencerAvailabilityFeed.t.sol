@@ -353,6 +353,71 @@ contract RobinhoodSequencerAvailabilityFeedTest is Test {
         );
     }
 
+    function test_LeaseExpiryRecoveryBlocksPricesForOneHour() external {
+        _configure(1, 0);
+        _status(1, true);
+        RobinhoodSequencerAvailabilityFeed.Heartbeat memory first = _heartbeat(999, 15 minutes);
+        feed.submitHeartbeat(first, _sign(first, 2));
+        uint256 firstRecoveryAt = block.timestamp;
+
+        StaticsOracle oracle = new StaticsOracle(address(this));
+        OracleTokenTestMock token = new OracleTokenTestMock(18);
+        OracleFeedTestMock priceFeed = new OracleFeedTestMock(8, "ASSET / USD");
+        priceFeed.setRound(100e8, block.timestamp);
+        oracle.setSequencerConfig(address(feed), 1 hours);
+        oracle.registerAsset(
+            address(token),
+            IStaticsOracle.AssetOracleConfigInput({
+                feed: address(priceFeed),
+                feedDescriptionHash: keccak256("ASSET / USD"),
+                maxAge: 1 days,
+                tokenDecimals: 18,
+                feedDecimals: 8,
+                kind: IStaticsOracle.AssetKind.CRYPTO,
+                checkOraclePause: false
+            })
+        );
+
+        for (uint64 i = 1; i <= 5; ++i) {
+            _renewHeartbeatAt(firstRecoveryAt + uint256(i) * 10 minutes, 999 + i);
+        }
+        vm.warp(firstRecoveryAt + 1 hours + 1);
+        priceFeed.setRound(100e8, block.timestamp);
+        oracle.enableAsset(address(token));
+        assertEq(oracle.priceUsd(address(token)), 100e18);
+
+        vm.warp(feed.healthyUntil());
+        assertFalse(feed.isUp());
+        (, int256 expiredAnswer, uint256 expiredAt,,) = feed.latestRoundData();
+        assertEq(expiredAnswer, 1);
+        assertEq(expiredAt, block.timestamp);
+        vm.expectRevert(StaticsOracle.SequencerDown.selector);
+        oracle.priceUsd(address(token));
+
+        _renewHeartbeatAt(block.timestamp, 1_005);
+        uint256 recoveryAt = block.timestamp;
+        assertTrue(feed.isUp());
+        (, int256 recoveredAnswer, uint256 startedAt,,) = feed.latestRoundData();
+        assertEq(recoveredAnswer, 0);
+        assertEq(startedAt, recoveryAt);
+        vm.expectRevert(
+            abi.encodeWithSelector(StaticsOracle.SequencerGracePeriod.selector, recoveryAt, 1 hours)
+        );
+        oracle.priceUsd(address(token));
+
+        for (uint64 i = 1; i <= 5; ++i) {
+            _renewHeartbeatAt(recoveryAt + uint256(i) * 10 minutes, 1_005 + i);
+        }
+        vm.warp(recoveryAt + 1 hours);
+        assertEq(
+            uint8(oracle.peekPrice(address(token)).status),
+            uint8(IStaticsOracle.OracleStatus.SEQUENCER_GRACE_PERIOD)
+        );
+        vm.warp(recoveryAt + 1 hours + 1);
+        priceFeed.setRound(100e8, block.timestamp);
+        assertEq(oracle.priceUsd(address(token)), 100e18);
+    }
+
     function test_DeploymentSupportsOnlyRobinhoodMainnetAndTestnet() external {
         vm.chainId(46_630);
         RobinhoodSequencerAvailabilityFeed testnetFeed =
@@ -413,6 +478,17 @@ contract RobinhoodSequencerAvailabilityFeedTest is Test {
             observedBlockHash: hash,
             validUntil: uint64(block.timestamp + duration)
         });
+    }
+
+    function _renewHeartbeatAt(
+        uint256 timestamp,
+        uint64 observedBlockNumber
+    ) internal {
+        vm.warp(timestamp);
+        vm.roll(uint256(observedBlockNumber) + 1);
+        RobinhoodSequencerAvailabilityFeed.Heartbeat memory heartbeat =
+            _heartbeat(observedBlockNumber, 15 minutes);
+        feed.submitHeartbeat(heartbeat, _sign(heartbeat, 2));
     }
 
     function _sign(
