@@ -1,0 +1,51 @@
+server {
+    listen 127.0.0.1:18781;
+    server_name localhost;
+    location / {
+        proxy_pass https://@OBSERVER_1_IPV4@:8443;
+        proxy_ssl_certificate /etc/equalfi/statics-oracle/tls/client.crt;
+        proxy_ssl_certificate_key /etc/equalfi/statics-oracle/tls/client.key;
+        proxy_ssl_trusted_certificate /etc/equalfi/statics-oracle/tls/ca.crt;
+        proxy_ssl_verify on;
+        proxy_ssl_verify_depth 2;
+        proxy_ssl_name @OBSERVER_1_TLS_NAME@;
+        proxy_ssl_server_name on;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 45s;
+        proxy_set_header Host @OBSERVER_1_IPV4@;
+    }
+}
+server {
+    listen 127.0.0.1:18782;
+    server_name localhost;
+    location / {
+        proxy_pass https://@OBSERVER_2_IPV4@:8443;
+        proxy_ssl_certificate /etc/equalfi/statics-oracle/tls/client.crt;
+        proxy_ssl_certificate_key /etc/equalfi/statics-oracle/tls/client.key;
+        proxy_ssl_trusted_certificate /etc/equalfi/statics-oracle/tls/ca.crt;
+        proxy_ssl_verify on;
+        proxy_ssl_verify_depth 2;
+        proxy_ssl_name @OBSERVER_2_TLS_NAME@;
+        proxy_ssl_server_name on;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 45s;
+        proxy_set_header Host @OBSERVER_2_IPV4@;
+    }
+}
+server {
+    listen 127.0.0.1:18783;
+    server_name localhost;
+    location / {
+        proxy_pass https://@OBSERVER_3_IPV4@:8443;
+        proxy_ssl_certificate /etc/equalfi/statics-oracle/tls/client.crt;
+        proxy_ssl_certificate_key /etc/equalfi/statics-oracle/tls/client.key;
+        proxy_ssl_trusted_certificate /etc/equalfi/statics-oracle/tls/ca.crt;
+        proxy_ssl_verify on;
+        proxy_ssl_verify_depth 2;
+        proxy_ssl_name @OBSERVER_3_TLS_NAME@;
+        proxy_ssl_server_name on;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 45s;
+        proxy_set_header Host @OBSERVER_3_IPV4@;
+    }
+}

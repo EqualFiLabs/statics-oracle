@@ -11,7 +11,7 @@ import {
   statusReportDomain,
   statusReportTypes,
 } from "./abi.mjs";
-import { assertRpcChain, getBlock, readSequencerFeedHead, waitForBlock } from "./rpc.mjs";
+import { assertRpcChain, createSequencerFeedReader, getBlock, waitForBlock } from "./rpc.mjs";
 import {
   AvailabilityTracker,
   ObserverState,
@@ -45,6 +45,7 @@ const authToken = validateAuthToken(requireEnv("OBSERVER_AUTH_TOKEN"), "OBSERVER
 if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new Error("OBSERVER_PORT is invalid");
 if (!Number.isFinite(pollInterval) || pollInterval <= 0) throw new Error("POLL_INTERVAL_MS must be positive");
 const tracker = new AvailabilityTracker();
+const sequencerFeed = createSequencerFeedReader(directFeedUrl);
 let lastSignedStatusSequence = -1n;
 let lastSignedStatusHealthy;
 
@@ -81,7 +82,7 @@ function respond(response, status, body) {
 
 async function sampleAvailability() {
   try {
-    const directHead = await readSequencerFeedHead(directFeedUrl);
+    const directHead = await sequencerFeed.readLatestHead();
     const directReferenceBlock = await waitForBlock(robinhoodRpcUrl, directHead.number);
     const referenceHead = selectReferenceHead(
       directReferenceBlock,
