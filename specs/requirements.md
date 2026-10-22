@@ -188,6 +188,8 @@ An asset whose token/feed pair has been identified but SHALL NOT become enabled 
 18. BEFORE initialization, deployment tooling SHALL fail closed on a wrong chain pair, delayed inbox, source commit, observer ordering, threshold, contract binding, runtime bytecode hash, gas configuration, or retryable reserve.
 19. THE deployment artifact SHALL record public addresses, transaction hashes, runtime bytecode hashes, observer-set hash, and reviewed configuration without containing RPC URLs, authentication secrets, or private keys.
 20. POST-DEPLOYMENT smoke and monitoring checks SHALL verify direct-feed and RPC agreement, observer health, L1 and L2 state synchronization, healthy lease duration, retryable reserve, and deployed bytecode.
+21. THE mainnet asset generator SHALL derive sequencer addresses, threshold, and observer-set hash from the validated, reviewed deployment manifest. Local validation SHALL reject disagreement between the asset and deployment manifests without requiring RPC access.
+22. LIVE whitelist validation SHALL reject disagreement between either chain and the reviewed observer set, threshold, runtime bytecode, or contract binding, and SHALL require matching nonzero observer-set versions. Reads SHALL be pinned to one block per chain and SHALL NOT automatically update the reviewed records.
 
 ---
 

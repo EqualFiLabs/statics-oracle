@@ -38,6 +38,7 @@ jobs:
         run: |
           node --check scripts/generate-whitelist.mjs
           node --check scripts/verify-whitelist.mjs
+          node --check scripts/verify-sequencer-config.mjs
 
       - name: Test sequencer signal services
         working-directory: observer
@@ -45,6 +46,9 @@ jobs:
           npm ci
           npm run check
           npm test
+
+      - name: Check recorded sequencer configuration
+        run: node scripts/verify-sequencer-config.mjs
 
       - name: Check formatting
         run: forge fmt --check

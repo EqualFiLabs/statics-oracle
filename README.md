@@ -88,6 +88,7 @@ token/feed matrix, the canonical Robinhood and Chainlink directories, and block-
 contract reads. Its lifecycle values are desired configuration, not evidence of deployment.
 
 ```bash
+npm ci --prefix observer
 export ROBINHOOD_MAINNET="<private-rpc-url>"
 node scripts/generate-whitelist.mjs --block <verified-block>
 ```
@@ -97,15 +98,32 @@ For byte-for-byte reproduction, also pass the checked-in `generatedAt` value thr
 missing bytecode, metadata mismatch, bridge-origin mismatch, invalid rounds, stale answers,
 or paused stock oracles. See `docs/robinhood-feed-coverage.md` for the feed inventory.
 
+Sequencer addresses, threshold, and observer-set hash come from the validated, reviewed
+`deployments/robinhood-mainnet.json`. Generation never adopts live quorum changes automatically.
+Check the asset/deployment records locally without RPC access:
+
+```bash
+node scripts/verify-sequencer-config.mjs
+```
+
 Verify the checked-in manifest without modifying it:
 
 ```bash
+export ETH_MAINNET="<private-ethereum-rpc-url>"
 node scripts/verify-whitelist.mjs
 ```
 
+The verifier requires both private RPCs. It checks the current observer lists, thresholds,
+matching nonzero observer-set versions, runtime code hashes, chain IDs, and reciprocal contract
+bindings on Ethereum and Robinhood against the reviewed records. Use
+`node scripts/verify-sequencer-config.mjs --live` to run only these read-only sequencer checks.
+Any mismatch is a hard failure requiring investigation and review; neither command updates files.
+
 Identity, missing-contract, decimal, description-hash, and invalid-round findings are hard
 failures. Non-identity directory metadata changes are reported as review warnings. Source drift is never applied automatically. Pass `--block`
-to reproduce a historical verification against an archive-capable RPC.
+to reproduce historical asset verification against an archive-capable RPC. Sequencer checks
+always use current block-pinned state on each chain, independently of the asset `--block`.
+The scheduled live-validation workflow also requires the `ETH_MAINNET` GitHub Actions secret.
 
 Block-pinned fork tests read the checked-in manifest and skip when the RPC variable is absent:
 

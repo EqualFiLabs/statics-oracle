@@ -2,10 +2,17 @@
 
 These templates describe the mainnet mutual-TLS transport. The observer Node
 process must bind only to `127.0.0.1:8787`; the coordinator Node process uses
-its three local ports `18781`–`18783`. Substitute the four host IP placeholders
-and three DNS identity placeholders before installing the Nginx files at
+its five local ports `18781`–`18785` for the recorded 3-of-5 mainnet configuration.
+Substitute the coordinator IP, five observer IPs, and five observer DNS identities
+before installing the Nginx files at
 `/etc/nginx/conf.d/statics-oracle.conf`. The DNS names are certificate
 identities; the proxies connect to fixed IPv4 addresses.
+
+Create one proxy per observer in the reviewed deployment manifest. Keep `OBSERVER_URLS`
+and `OBSERVER_AUTH_TOKENS` in matching order and include all five mainnet observers;
+the smoke check and monitor reject a different endpoint count or signer set. For the
+separate 2-of-3 testnet deployment, render only its three observer proxies and use its
+manifest and three matching endpoint/token pairs.
 
 Each observer holds only its own server certificate and key plus the CA
 certificate in `/etc/equalfi/statics-oracle/tls/`. The coordinator holds only

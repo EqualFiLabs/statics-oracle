@@ -4,6 +4,8 @@ import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+import { recordedSequencerConfiguration } from "../observer/src/sequencer-config.mjs";
+
 export const CHAIN_ID = 4663;
 const L2_GATEWAY_ROUTER = "0x1E324B9316138CA9a73F960213621AD1aaf01B89";
 export const SOURCES = Object.freeze({
@@ -207,6 +209,7 @@ function requireUnique(items, description) {
 
 export async function generateManifest({ rpcUrl, blockNumber, generatedAt }) {
   if (!rpcUrl) fail("ROBINHOOD_MAINNET is required");
+  const sequencer = recordedSequencerConfiguration();
 
   const [robinhoodPayload, chainlinkDirectory, chainIdHex, latestBlockHex] = await Promise.all([
     fetchJson(SOURCES.robinhoodAssets, "Robinhood asset registry"),
@@ -367,11 +370,7 @@ export async function generateManifest({ rpcUrl, blockNumber, generatedAt }) {
     verifiedBlockTimestamp,
     sources: SOURCES,
     sequencer: {
-      feed: "0xeCe3F60De85705472292a44787123a8Fc46CDa54",
-      l1Reporter: "0x30adfaef118acaa415d73a20d55dc7a8cd3381b4",
-      l1Inbox: "0x1A07cc4BD17E0118BdB54D70990D2158AbAD7a2D",
-      observerSetHash: "0xda3ec1d8abac7667cfc53fe36d2a63516a4326db83d23a11df77da4bf2c3c328",
-      threshold: 3,
+      ...sequencer,
       pollIntervalSeconds: 30,
       failureSamples: 3,
       recoverySamples: 3,

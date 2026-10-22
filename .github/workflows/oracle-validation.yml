@@ -17,6 +17,7 @@ jobs:
     name: Live sources and Robinhood fork
     runs-on: ubuntu-latest
     env:
+      ETH_MAINNET: ${{ secrets.ETH_MAINNET }}
       ROBINHOOD_MAINNET: ${{ secrets.ROBINHOOD_MAINNET }}
     steps:
       - name: Check out repository
@@ -34,9 +35,14 @@ jobs:
         with:
           version: v1.8.1
 
-      - name: Require configured private RPC
+      - name: Require configured private RPCs
         shell: bash
-        run: test -n "$ROBINHOOD_MAINNET"
+        run: |
+          test -n "$ETH_MAINNET"
+          test -n "$ROBINHOOD_MAINNET"
+
+      - name: Install sequencer verification dependencies
+        run: npm ci --prefix observer
 
       - name: Verify canonical sources and live contracts
         run: node scripts/verify-whitelist.mjs
