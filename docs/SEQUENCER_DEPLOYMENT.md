@@ -234,16 +234,18 @@ Prove lease expiry, quorum recovery, and the consumer's configured grace period 
 testnet before using the signal as an oracle dependency. The other drills below exercise
 operational resilience and can be completed after initial configuration:
 
-1. Stop the primary coordinator and confirm delayed-backup renewal.
-2. Stop one observer and confirm the two-of-three quorum remains live while monitoring alerts.
-3. Stop two observers and confirm the lease expires without a marking transaction.
+1. If a backup coordinator is installed, stop the primary and confirm backup renewal.
+2. Stop one observer and confirm the configured quorum remains live while monitoring alerts.
+3. Stop enough observers to leave fewer than the configured threshold and confirm the lease
+   expires without a marking transaction.
 4. Break one observer's RPC and confirm it becomes impaired after three samples.
 5. Delay or omit a retryable redemption and exercise owner-only requeue.
 6. Restore services and confirm three-success recovery, a new status sequence, a fresh heartbeat,
    and the consumer recovery boundary.
 7. Rotate one observer through the owner process and confirm fail-closed configuration delivery.
 
-If the deployment behaves unexpectedly, stop both coordinators. Do not lower the quorum threshold.
+If the deployment behaves unexpectedly, stop active coordinator services. Do not lower the
+quorum threshold.
 The existing lease expires automatically. The contracts are non-upgradeable; a contract defect
 requires a reviewed replacement deployment rather than an in-place upgrade.
 
