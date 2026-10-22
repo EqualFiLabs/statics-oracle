@@ -37,12 +37,14 @@
     "owner": "0x4CF8e4D37F561815F208565a5b6Ca8a85b143205",
     "refundAddress": "0x4CF8e4D37F561815F208565a5b6Ca8a85b143205",
     "observers": [
+      "0x2a58B2071b0BB97A456AAd39C0E4084780eD845F",
+      "0x5DC89E2EF7f500a45014F1966B9f365064EE676a",
       "0x644039C01A3d4c14281A3deB663177533298eD36",
       "0x88F051E075115Cce2b6958D7DbC0d4986E8F298D",
       "0xcBD918495c110d8263cC89D6D1bB6cBc5E3d3B6c"
     ],
-    "threshold": 2,
-    "observerSetHash": "0x04d01fb3f628cf7fd0130982d87c1ba682525ffe923c6fc229ae0de25a388552",
+    "threshold": 3,
+    "observerSetHash": "0xda3ec1d8abac7667cfc53fe36d2a63516a4326db83d23a11df77da4bf2c3c328",
     "statusGasLimit": "200000",
     "configurationGasLimit": "400000",
     "gasPriceBid": "100000000",

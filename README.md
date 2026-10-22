@@ -57,9 +57,10 @@ status transitions are recorded
 on Ethereum and delivered to Robinhood through retryable tickets. A separate Robinhood heartbeat
 renews every five minutes and expires after 15 minutes. Each heartbeat is signed for the current
 L1 status sequence. The feed reports healthy only when the latest L1 state is healthy and the L2
-lease for that exact status sequence is active. Production use still requires deployment,
-independent operators, key custody, monitoring, and an explicitly reviewed recovery grace period.
-See [Sequencer signal operations](docs/SEQUENCER_SIGNAL.md).
+lease for that exact status sequence is active. The mainnet signal is live with a
+three-of-five observer quorum; see the [deployment record](docs/SEQUENCER_MAINNET_DEPLOYMENT.md). Production oracle use still requires
+operator independence, key custody, monitoring, and an explicitly reviewed recovery
+grace period. See [Sequencer signal operations](docs/SEQUENCER_SIGNAL.md).
 Use [Sequencer signal deployment](docs/SEQUENCER_DEPLOYMENT.md) for the two-chain preflight,
 funding, initialization, service, smoke-test, monitoring, and evidence procedure.
 Asset-specific feed heartbeats and `maxAge` policies must likewise be sourced and reviewed
