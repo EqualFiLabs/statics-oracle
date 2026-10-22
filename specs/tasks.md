@@ -787,6 +787,16 @@ The implementation SHALL remain limited to Chainlink-based external asset pricin
     - CI SHALL NOT automatically rewrite the whitelist or submit production feed replacements.
     - _Requirements: 10.5, 10.6, 11.7_
 
+  - [x] 24.4 Detect sequencer configuration-record drift
+    - Derive generated quorum metadata from the validated deployment manifest.
+    - Check asset/deployment consistency in deterministic PR CI.
+    - Verify both deployed observer sets, thresholds, versions, code hashes, and bindings
+      during read-only live whitelist validation using both private RPCs.
+    - Reproduce the complete asset manifest under recorded fixture inputs and reject
+      stale quorum metadata without rewriting approved records.
+    - Keep mainnet mTLS proxy and endpoint/token examples aligned with five observers.
+    - _Requirements: 7.21, 7.22_
+
 - [ ] 25. Document whitelist and operations
   - [ ] 25.1 Complete `README.md`
     - Explain:

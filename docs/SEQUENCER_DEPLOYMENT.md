@@ -153,8 +153,10 @@ Each observer environment follows `observer/.env.example` and contains its own s
 distinct bearer token, independent RPC, host, and port. Bind the observer HTTP API to
 `127.0.0.1`; never expose it directly on a public interface. Use an authenticated encrypted
 transport between the coordinator and each host. The mainnet installation uses a mutual-TLS
-Nginx server on each observer, a source-IP firewall rule, and three loopback-only Nginx
-upstream proxies on the coordinator. Each proxy validates its observer server certificate,
+Nginx server on each observer, a source-IP firewall rule, and five loopback-only Nginx
+upstream proxies on the coordinator for its current 3-of-5 observer set. The templates in
+`observer/ops/nginx/` and `observer/.env.example` describe that mainnet topology; adapt the
+proxy count and ordered endpoint/token pairs to the reviewed manifest for testnet. Each proxy validates its observer server certificate,
 while each observer validates the coordinator client certificate. The coordinator receives
 only the ordered loopback proxy URLs and matching ordered token list. Set
 `RELAYER_ROLE=primary` for the primary and `RELAYER_ROLE=backup` with

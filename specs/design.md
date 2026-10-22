@@ -1106,6 +1106,16 @@ healthy heartbeat with more than ten minutes remaining, and the configured retry
 The same fail-closed check runs under a scheduled service monitor. None of these read-only checks
 loads a deployment or signing private key.
 
+Mainnet asset generation derives sequencer addresses, threshold, and observer-set hash from
+the validated deployment manifest rather than separate constants. Deterministic PR checks
+compare the committed asset record with that manifest. Live whitelist validation additionally
+requires both Ethereum and Robinhood private RPCs and verifies exact observer lists, thresholds,
+matching nonzero observer-set versions, runtime hashes, and reciprocal reporter/feed bindings.
+Each chain's reads use one pinned current block; an asset `--block` does not select historical
+sequencer state. A mismatch fails validation and requires review, without changing either record.
+Mainnet transport examples include five endpoint/token pairs and five loopback mTLS proxies;
+other deployments must render their own manifest's observer count and signer set.
+
 When down: `SEQUENCER_DOWN`.
 
 When back up:

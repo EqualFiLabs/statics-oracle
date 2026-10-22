@@ -2,6 +2,9 @@
 
 import { readFileSync } from "node:fs";
 
+import { sanitizeOperationalError } from "../observer/src/deployment.mjs";
+import { validateAssetSequencer, verifyLiveSequencer } from "../observer/src/sequencer-config.mjs";
+
 import {
   CHAIN_ID,
   REQUESTED_ASSETS,
@@ -61,6 +64,18 @@ async function main() {
   if (manifest.chainId !== CHAIN_ID) hardFailures.push(`manifest chainId is not ${CHAIN_ID}`);
   if (!Array.isArray(manifest.assets)) hardFailures.push("manifest assets must be an array");
   if (hardFailures.length > 0) return report(hardFailures, reviewWarnings, null);
+
+  // A historical --block pins asset reads only. The quorum record must match current live state.
+  validateAssetSequencer(manifest);
+  const sequencer = await verifyLiveSequencer({
+    manifest,
+    ethereumRpcUrl: process.env.ETH_MAINNET,
+    robinhoodRpcUrl: process.env.ROBINHOOD_MAINNET,
+  });
+  process.stdout.write(
+    `sequencer quorum verified at Ethereum block ${sequencer.reporter.blockNumber}` +
+    ` and Robinhood block ${sequencer.feed.blockNumber}; version ${sequencer.reporter.version}\n`,
+  );
 
   const manifestBySymbol = new Map();
   const tokenOwners = new Map();
@@ -239,6 +254,6 @@ function report(hardFailures, reviewWarnings, verifiedBlock) {
 }
 
 main().catch((error) => {
-  process.stderr.write(`verify-whitelist: ${error.message}\n`);
+  process.stderr.write(`verify-whitelist: ${sanitizeOperationalError(error)}\n`);
   process.exitCode = 1;
 });
