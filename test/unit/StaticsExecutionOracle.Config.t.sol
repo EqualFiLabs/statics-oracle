@@ -48,4 +48,31 @@ contract ExecutionConfigTest is Test {
         );
         oracle.transferOwnership(address(456));
     }
+
+    function testRegisterRejectsInvalidAndRepeatedBindings() public {
+        IEO.ExecutionMarketConfigInput memory cfg = input();
+        cfg.streamId = bytes32(uint256(1));
+        vm.expectRevert(StaticsExecutionOracle.InvalidStreamId.selector);
+        oracle.registerMarket(MARKET, cfg);
+        cfg = input();
+        cfg.executionDelay = 0;
+        vm.expectRevert(StaticsExecutionOracle.InvalidExecutionDelay.selector);
+        oracle.registerMarket(MARKET, cfg);
+        cfg = input();
+        cfg.maxReportWindow = 0;
+        vm.expectRevert(StaticsExecutionOracle.InvalidMaxReportWindow.selector);
+        oracle.registerMarket(MARKET, cfg);
+        cfg = input();
+        cfg.streamDecimals = 19;
+        vm.expectRevert(
+            abi.encodeWithSelector(StaticsExecutionOracle.UnsupportedStreamDecimals.selector, 19)
+        );
+        oracle.registerMarket(MARKET, cfg);
+        cfg = input();
+        oracle.registerMarket(MARKET, cfg);
+        vm.expectRevert(
+            abi.encodeWithSelector(StaticsExecutionOracle.MarketAlreadyRegistered.selector, MARKET)
+        );
+        oracle.registerMarket(MARKET, cfg);
+    }
 }

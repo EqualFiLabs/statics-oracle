@@ -17,6 +17,33 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     error InvalidBundleBound();
     error ExecutionNotAvailable();
     error OwnershipRenunciationDisabled();
+    error InvalidMarketId();
+    error InvalidStreamId();
+    error InvalidExecutionDelay();
+    error InvalidMaxReportWindow();
+    error UnsupportedStreamDecimals(uint8 decimals);
+    error MarketAlreadyRegistered(bytes32 marketId);
+    error UnsupportedMarket(bytes32 marketId);
+    error InvalidMarketStatusTransition(bytes32 marketId, MarketStatus from, MarketStatus to);
+    error MarketMustBeDisabled(bytes32 marketId, MarketStatus status);
+    event MarketRegistered(
+        bytes32 indexed marketId,
+        bytes32 indexed streamId,
+        uint64 indexed version,
+        bytes32 configHash
+    );
+    event MarketUpdated(
+        bytes32 indexed marketId,
+        bytes32 indexed streamId,
+        uint64 indexed version,
+        bytes32 configHash
+    );
+    event MarketStatusChanged(
+        bytes32 indexed marketId,
+        MarketStatus previousStatus,
+        MarketStatus newStatus,
+        uint64 indexed version
+    );
 
     constructor(
         address initialOwner,
@@ -32,6 +59,47 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
 
     function renounceOwnership() public pure override {
         revert OwnershipRenunciationDisabled();
+    }
+
+    function registerMarket(
+        bytes32 marketId,
+        ExecutionMarketConfigInput calldata input
+    ) external onlyOwner {
+        if (marketId == bytes32(0)) revert InvalidMarketId();
+        if (_markets[marketId].status != MarketStatus.UNSET) {
+            revert MarketAlreadyRegistered(marketId);
+        }
+        _validateConfig(input);
+        ExecutionMarketConfig memory config = _toConfig(input);
+        _markets[marketId] = config;
+        uint64 version = ++registryVersion;
+        emit MarketRegistered(
+            marketId, config.streamId, version, keccak256(abi.encode(marketId, config))
+        );
+        emit MarketStatusChanged(marketId, MarketStatus.UNSET, MarketStatus.CANDIDATE, version);
+    }
+
+    function _validateConfig(
+        ExecutionMarketConfigInput memory input
+    ) internal pure {
+        if (input.streamId == bytes32(0) || uint16(bytes2(input.streamId)) != 3) {
+            revert InvalidStreamId();
+        }
+        if (input.executionDelay == 0) revert InvalidExecutionDelay();
+        if (input.maxReportWindow == 0) revert InvalidMaxReportWindow();
+        if (input.streamDecimals > 18) revert UnsupportedStreamDecimals(input.streamDecimals);
+    }
+
+    function _toConfig(
+        ExecutionMarketConfigInput memory input
+    ) internal pure returns (ExecutionMarketConfig memory) {
+        return ExecutionMarketConfig(
+            input.streamId,
+            input.executionDelay,
+            input.maxReportWindow,
+            input.streamDecimals,
+            MarketStatus.CANDIDATE
+        );
     }
 
     function verifyExecutionPrice(
