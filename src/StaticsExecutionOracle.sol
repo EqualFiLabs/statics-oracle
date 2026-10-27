@@ -36,6 +36,9 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     error ReportExpired(uint32 expiresAt, uint256 currentTimestamp);
     error FutureObservation(uint32 observationsTimestamp, uint256 currentTimestamp);
     error ReportWindowTooWide(uint32 width, uint32 maximum);
+    error ReferenceTimestampOutOfRange(uint256 timestamp, uint32 delay);
+    error ReportWindowUnavailable(uint256 referenceTimestamp);
+    error OverlappingReportWindows(uint256 referenceTimestamp, uint256 matches);
     error ZeroAddress();
     error NoContractCode(address account);
     error InvalidBundleBound();
@@ -200,11 +203,21 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
             revert TooManyReports(fullReports.length, maxReportBundleSize);
         }
         _requireHealthySequencer();
+        uint32 referenceTimestamp = _referenceTimestamp(_markets[marketId].executionDelay);
         bytes[] memory verified = _authenticate(fullReports);
         for (uint256 i; i < verified.length; ++i) {
             _decodeAndValidate(verified[i], _markets[marketId]);
         }
         revert ExecutionNotAvailable();
+    }
+
+    function _referenceTimestamp(
+        uint32 delay
+    ) internal view returns (uint32) {
+        if (block.timestamp < delay || block.timestamp - delay > type(uint32).max) {
+            revert ReferenceTimestampOutOfRange(block.timestamp, delay);
+        }
+        return uint32(block.timestamp - delay);
     }
 
     function _decodeAndValidate(
