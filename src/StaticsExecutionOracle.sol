@@ -12,6 +12,10 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     uint64 public override registryVersion;
     mapping(bytes32 marketId => ExecutionMarketConfig) private _markets;
 
+    mapping(address consumer => bool enabled) private _authorizedConsumers;
+    error UnauthorizedConsumer(address consumer);
+    event AuthorizedConsumerUpdated(address indexed consumer, bool enabled, uint64 indexed version);
+
     error ZeroAddress();
     error NoContractCode(address account);
     error InvalidBundleBound();
@@ -153,6 +157,16 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
         );
     }
 
+    function setAuthorizedConsumer(
+        address consumer,
+        bool enabled
+    ) external onlyOwner {
+        if (consumer == address(0)) revert ZeroAddress();
+        if (enabled && consumer.code.length == 0) revert NoContractCode(consumer);
+        _authorizedConsumers[consumer] = enabled;
+        emit AuthorizedConsumerUpdated(consumer, enabled, ++registryVersion);
+    }
+
     function verifyExecutionPrice(
         bytes32,
         bytes[] calldata
@@ -178,8 +192,8 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     }
 
     function isAuthorizedConsumer(
-        address
+        address consumer
     ) external view override returns (bool) {
-        return false;
+        return _authorizedConsumers[consumer];
     }
 }
