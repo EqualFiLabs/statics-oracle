@@ -43,4 +43,62 @@ contract RobinhoodExecutionOracleForkTest is ExecutionForkBase {
         vm.expectRevert();
         IVerifierProxy(proxy(0)).verifyBulk(reports, bytes(""));
     }
+
+    function testRealSignedReportsAndSubscriptionVerification() public {
+        string memory path = vm.envOr("EXECUTION_REPORT_FIXTURE", string(""));
+        if (bytes(path).length == 0) {
+            vm.skip(true, "Licensed pinned signed-report fixture is required");
+            return;
+        }
+        string memory rpc = vm.envOr("ROBINHOOD_MAINNET", string(""));
+        if (bytes(rpc).length == 0) {
+            vm.skip(true, "Configured Robinhood RPC is required");
+            return;
+        }
+        string memory fixture = vm.readFile(path);
+        vm.createSelectFork(rpc, vm.parseJsonUint(fixture, ".blockNumber"));
+        assertEq(block.chainid, 4663);
+        assertEq(block.timestamp, vm.parseJsonUint(fixture, ".blockTimestamp"));
+        assertProxy(0);
+        bytes[] memory reports = vm.parseJsonBytesArray(fixture, ".fullReports");
+        bytes[] memory expected = vm.parseJsonBytesArray(fixture, ".verifiedBodies");
+        assertGt(reports.length, 0);
+        assertEq(reports.length, expected.length);
+        bytes[] memory actual = IVerifierProxy(proxy(0)).verifyBulk(reports, bytes(""));
+        assertEq(actual.length, expected.length);
+        for (uint256 i; i < actual.length; ++i) {
+            assertEq(actual[i], expected[i]);
+        }
+        StaticsExecutionOracle oracle =
+            new StaticsExecutionOracle(address(this), proxy(0), uint8(reports.length));
+        bytes32 market = vm.parseJsonBytes32(fixture, ".marketId");
+        uint256 delay = vm.parseJsonUint(fixture, ".executionDelay");
+        uint256 width = vm.parseJsonUint(fixture, ".maxReportWindow");
+        uint256 decimals = vm.parseJsonUint(fixture, ".streamDecimals");
+        assertLe(reports.length, 255);
+        assertLe(delay, type(uint32).max);
+        assertLe(width, type(uint32).max);
+        assertLe(decimals, 18);
+        oracle.registerMarket(
+            market,
+            IEO.ExecutionMarketConfigInput(
+                vm.parseJsonBytes32(fixture, ".streamId"),
+                uint32(delay),
+                uint32(width),
+                uint8(decimals)
+            )
+        );
+        oracle.enableMarket(market);
+        oracle.setAuthorizedConsumer(address(this), true);
+        address feed = vm.parseJsonAddress(bindings, key(0, "sequencerFeed"));
+        oracle.setSequencerConfig(feed, 3600);
+        IEO.ExecutionPrice memory got = oracle.verifyExecutionPrice(market, reports);
+        DataStreamsV3.Report memory selected =
+            DataStreamsV3.decode(vm.parseJsonBytes(fixture, ".selectedBody"));
+        assertEq(got.price1e18, uint256(int256(selected.price)) * 10 ** (18 - decimals));
+        assertEq(got.streamId, selected.feedId);
+        assertEq(got.validFromTimestamp, selected.validFromTimestamp);
+        assertEq(got.observationsTimestamp, selected.observationsTimestamp);
+        assertEq(got.referenceTimestamp, block.timestamp - delay);
+    }
 }
