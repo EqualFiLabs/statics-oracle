@@ -31,6 +31,18 @@ duplicate rejection, metadata and normalized consensus price. Every body is
 validated before success, and no price or observation watermark is stored.
 These tests do not establish real Chainlink subscription or deployment behavior.
 
+## Checkpoint C
+
+Local unit tests and generated properties pass, including a 256-run registry
+invariant campaign with 16,384 handler calls and zero reverts. A pinned private-RPC
+fork run passes four checks: canonical verifier identity/runtime on both networks,
+forged-payload rejection, mainnet archive binding and deployed sequencer
+health/grace/lease-expiry behavior. Mainnet block: 99,517,116; testnet: 143,784,728.
+
+Real signed-report authentication is explicitly pending a licensed capture and
+subscription credentials. Its test exists and skips when the fixture is absent;
+that skip does not satisfy the real-report gate. No deployment was broadcast.
+
 ## Progress
 
 - 1.1–1.3 Consumer ABI, bulk verifier ABI and V3 types defined.
