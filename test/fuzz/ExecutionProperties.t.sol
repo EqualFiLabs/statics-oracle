@@ -63,4 +63,33 @@ contract ExecutionPropertiesTest is ExecutionTestBase {
         assertLe(got.validFromTimestamp, got.referenceTimestamp);
         assertLe(got.referenceTimestamp, got.observationsTimestamp);
     }
+
+    function testFuzzPermutationAndMatchingEntryMultiplicity(
+        uint256 order,
+        uint96 raw
+    ) public {
+        DataStreamsV3.Report memory selected = report();
+        selected.price = int192(uint192(raw) + 1);
+        DataStreamsV3.Report memory old = report();
+        old.validFromTimestamp = 950;
+        old.observationsTimestamp = 960;
+        old.price = 1;
+        bytes[] memory reports = new bytes[](3);
+        reports[0] = signed(old);
+        reports[1] = signed(selected);
+        reports[2] = reports[0];
+        for (uint256 i = 3; i > 1; --i) {
+            uint256 j = order % i;
+            (reports[i - 1], reports[j]) = (reports[j], reports[i - 1]);
+            order = uint256(keccak256(abi.encode(order)));
+        }
+        assertEq(oracle.verifyExecutionPrice(MARKET, reports).price1e18, (uint256(raw) + 1) * 1e10);
+        reports[0] = signed(selected);
+        reports[1] = reports[0];
+        reports[2] = reports[0];
+        vm.expectRevert(
+            abi.encodeWithSelector(StaticsExecutionOracle.OverlappingReportWindows.selector, 990, 3)
+        );
+        oracle.verifyExecutionPrice(MARKET, reports);
+    }
 }
