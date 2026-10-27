@@ -35,4 +35,25 @@ contract ExecutionAdminTest is ExecutionConfigTest {
         );
         oracle.verifyExecutionPrice(MARKET, new bytes[](0));
     }
+
+    function testSequencerConfigurationRejectsMalformedFeed() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StaticsExecutionOracle.SequencerFeedCallFailed.selector, verifier
+            )
+        );
+        oracle.setSequencerConfig(verifier, 10);
+        OracleFeedTestMock feed = new OracleFeedTestMock(0, "health");
+        feed.setRoundData(1, 0, 900, 900, 1);
+        oracle.setSequencerConfig(address(feed), 10);
+        uint64 version = oracle.registryVersion();
+        feed.setLatestRoundCallFails(true);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StaticsExecutionOracle.SequencerFeedCallFailed.selector, address(feed)
+            )
+        );
+        oracle.setSequencerConfig(address(feed), 20);
+        assertEq(oracle.registryVersion(), version);
+    }
 }
