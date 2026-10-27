@@ -16,4 +16,22 @@ contract ExecutionPropertiesTest is ExecutionTestBase {
         oracle.updateMarket(MARKET, IEO.ExecutionMarketConfigInput(STREAM, delay, width, decimals));
         oracle.enableMarket(MARKET);
     }
+
+    function testFuzzConsensusPriceIsSoleAuthority(
+        uint192 raw,
+        uint8 decimals,
+        int192 bid,
+        int192 ask
+    ) public {
+        uint256 price = bound(uint256(raw), 1, uint256(uint192(type(int192).max)));
+        decimals = uint8(bound(decimals, 0, 18));
+        precision(decimals, 10, 30);
+        DataStreamsV3.Report memory r = report();
+        r.price = int192(int256(price));
+        r.bid = bid;
+        r.ask = ask;
+        assertEq(
+            oracle.verifyExecutionPrice(MARKET, bundle(r)).price1e18, price * 10 ** (18 - decimals)
+        );
+    }
 }
