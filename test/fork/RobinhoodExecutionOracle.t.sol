@@ -27,4 +27,20 @@ contract RobinhoodExecutionOracleForkTest is ExecutionForkBase {
         forkNetwork(0);
         assertProxy(0);
     }
+
+    function testCanonicalVerifierIdentityOnMainnetAndTestnet() public {
+        for (uint256 network; network < 2; ++network) {
+            forkNetwork(network);
+            assertProxy(network);
+            assertEq(IVersionedVerifier(proxy(network)).typeAndVersion(), "VerifierProxy 2.0.0");
+        }
+    }
+
+    function testCanonicalVerifierRejectsForgedPayload() public {
+        forkNetwork(0);
+        bytes[] memory reports = new bytes[](1);
+        reports[0] = hex"deadbeef";
+        vm.expectRevert();
+        IVerifierProxy(proxy(0)).verifyBulk(reports, bytes(""));
+    }
 }
