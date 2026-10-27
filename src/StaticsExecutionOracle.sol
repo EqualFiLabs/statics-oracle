@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import { IAggregatorV3 } from "src/interfaces/IAggregatorV3.sol";
 import { IStaticsExecutionOracle } from "src/interfaces/IStaticsExecutionOracle.sol";
 
 /// @notice Transaction-local Data Streams execution adapter for synthetic markets.
@@ -11,6 +12,18 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     uint8 public immutable override maxReportBundleSize;
     uint64 public override registryVersion;
     mapping(bytes32 marketId => ExecutionMarketConfig) private _markets;
+
+    mapping(address consumer => bool enabled) private _authorizedConsumers;
+    error UnauthorizedConsumer(address consumer);
+    error MarketNotEnabled(bytes32 marketId, MarketStatus status);
+    event AuthorizedConsumerUpdated(address indexed consumer, bool enabled, uint64 indexed version);
+
+    SequencerConfig private _sequencerConfig;
+    error SequencerFeedCallFailed(address feed);
+    error SequencerNotConfigured();
+    error SequencerDown();
+    error SequencerGracePeriod(uint256 recoveryStartedAt, uint32 gracePeriod);
+    event SequencerConfigUpdated(address indexed feed, uint32 gracePeriod, uint64 indexed version);
 
     error ZeroAddress();
     error NoContractCode(address account);
@@ -153,10 +166,25 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
         );
     }
 
+    function setAuthorizedConsumer(
+        address consumer,
+        bool enabled
+    ) external onlyOwner {
+        if (consumer == address(0)) revert ZeroAddress();
+        if (enabled && consumer.code.length == 0) revert NoContractCode(consumer);
+        _authorizedConsumers[consumer] = enabled;
+        emit AuthorizedConsumerUpdated(consumer, enabled, ++registryVersion);
+    }
+
     function verifyExecutionPrice(
-        bytes32,
+        bytes32 marketId,
         bytes[] calldata
     ) external virtual override returns (ExecutionPrice memory) {
+        if (!_authorizedConsumers[msg.sender]) revert UnauthorizedConsumer(msg.sender);
+        MarketStatus status = _markets[marketId].status;
+        if (status == MarketStatus.UNSET) revert UnsupportedMarket(marketId);
+        if (status != MarketStatus.ENABLED) revert MarketNotEnabled(marketId, status);
+        _requireHealthySequencer();
         revert ExecutionNotAvailable();
     }
 
@@ -174,12 +202,54 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     }
 
     function sequencerConfig() external view override returns (SequencerConfig memory) {
-        return SequencerConfig(address(0), 0);
+        return _sequencerConfig;
+    }
+
+    function setSequencerConfig(
+        address feed,
+        uint32 gracePeriod
+    ) external onlyOwner {
+        if (feed == address(0)) revert ZeroAddress();
+        if (feed.code.length == 0) revert NoContractCode(feed);
+        (bool ok,,) = _readSequencer(feed);
+        if (!ok) revert SequencerFeedCallFailed(feed);
+        _sequencerConfig = SequencerConfig(feed, gracePeriod);
+        emit SequencerConfigUpdated(feed, gracePeriod, ++registryVersion);
+    }
+
+    /// @dev Bound returndata copying and validate narrow round identifiers before trusting the shape.
+    function _requireHealthySequencer() internal view {
+        SequencerConfig memory config = _sequencerConfig;
+        if (config.feed == address(0)) revert SequencerNotConfigured();
+        (bool ok, int256 answer, uint256 startedAt) = _readSequencer(config.feed);
+        if (!ok || answer != 0 || startedAt == 0 || startedAt > block.timestamp) {
+            revert SequencerDown();
+        }
+        if (block.timestamp - startedAt <= config.gracePeriod) {
+            revert SequencerGracePeriod(startedAt, config.gracePeriod);
+        }
+    }
+
+    function _readSequencer(
+        address feed
+    ) internal view returns (bool ok, int256 answer, uint256 startedAt) {
+        bytes memory data = abi.encodeCall(IAggregatorV3.latestRoundData, ());
+        uint256[5] memory words;
+        uint256 size;
+        assembly ("memory-safe") {
+            ok := staticcall(gas(), feed, add(data, 32), mload(data), words, 160)
+            size := returndatasize()
+        }
+        if (!ok || size != 160 || words[0] > type(uint80).max || words[4] > type(uint80).max) {
+            return (false, 0, 0);
+        }
+        assembly ("memory-safe") { answer := mload(add(words, 32)) }
+        return (true, answer, words[2]);
     }
 
     function isAuthorizedConsumer(
-        address
+        address consumer
     ) external view override returns (bool) {
-        return false;
+        return _authorizedConsumers[consumer];
     }
 }
