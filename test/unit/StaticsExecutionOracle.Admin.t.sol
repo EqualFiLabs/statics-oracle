@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
-import { ExecutionConfigTest } from "./StaticsExecutionOracle.Config.t.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { StaticsExecutionOracle } from "src/StaticsExecutionOracle.sol";
 import { IStaticsExecutionOracle as IEO } from "src/interfaces/IStaticsExecutionOracle.sol";
+import { ExecutionConfigBase } from "test/ExecutionConfigBase.sol";
 import { OracleFeedTestMock } from "test/mocks/OracleTestMocks.sol";
 
-contract ExecutionAdminTest is ExecutionConfigTest {
+contract ExecutionAdminTest is ExecutionConfigBase {
     function testOnlyOwnerCanAuthorizeContracts() public {
         vm.prank(address(123));
         vm.expectRevert(

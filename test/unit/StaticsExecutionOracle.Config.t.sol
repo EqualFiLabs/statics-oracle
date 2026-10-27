@@ -2,27 +2,15 @@
 pragma solidity ^0.8.24;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Test } from "forge-std/Test.sol";
+import { Vm } from "forge-std/Vm.sol";
 import { StaticsExecutionOracle } from "src/StaticsExecutionOracle.sol";
 import { IStaticsExecutionOracle as IEO } from "src/interfaces/IStaticsExecutionOracle.sol";
 
 contract ExecutionVerifierCodeMock { }
 
-contract ExecutionConfigTest is Test {
-    StaticsExecutionOracle internal oracle;
-    address internal verifier;
-    bytes32 internal constant MARKET = keccak256("BTC_USD");
-    bytes32 internal constant STREAM = bytes32((uint256(3) << 240) | 1234);
+import { ExecutionConfigBase } from "test/ExecutionConfigBase.sol";
 
-    function setUp() public {
-        vm.warp(1000);
-        verifier = address(new ExecutionVerifierCodeMock());
-        oracle = new StaticsExecutionOracle(address(this), verifier, 5);
-    }
-
-    function input() internal pure returns (IEO.ExecutionMarketConfigInput memory) {
-        return IEO.ExecutionMarketConfigInput(STREAM, 10, 30, 8);
-    }
-
+contract ExecutionConfigTest is ExecutionConfigBase {
     function testConstructorRejectsUnusableDependencies() public {
         vm.expectRevert(StaticsExecutionOracle.ZeroAddress.selector);
         new StaticsExecutionOracle(address(this), address(0), 5);
@@ -150,5 +138,37 @@ contract ExecutionConfigTest is Test {
         oracle.updateMarket(MARKET, input());
         assertEq(candidate, oracle.configHash(MARKET));
         assertEq(oracle.registryVersion(), version + 2);
+    }
+
+    function testAllMarketMutationsRequireOwnerAndFailedCallsDoNotAdvanceVersion() public {
+        IEO.ExecutionMarketConfigInput memory cfg = input();
+        oracle.registerMarket(MARKET, cfg);
+        uint64 version = oracle.registryVersion();
+        vm.startPrank(address(123));
+        vm.expectRevert();
+        oracle.enableMarket(MARKET);
+        vm.expectRevert();
+        oracle.disableMarket(MARKET);
+        vm.expectRevert();
+        oracle.updateMarket(MARKET, cfg);
+        vm.expectRevert();
+        oracle.registerMarket(keccak256("ETH_USD"), cfg);
+        vm.stopPrank();
+        assertEq(oracle.registryVersion(), version);
+    }
+
+    function testRegistrationEmitsLifecycleAndBindingWithOneVersion() public {
+        vm.recordLogs();
+        oracle.registerMarket(MARKET, input());
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertEq(logs.length, 2);
+        assertEq(logs[0].topics[0], keccak256("MarketRegistered(bytes32,bytes32,uint64,bytes32)"));
+        assertEq(logs[0].topics[1], MARKET);
+        assertEq(logs[0].topics[2], STREAM);
+        assertEq(logs[0].topics[3], bytes32(uint256(1)));
+        assertEq(logs[0].data, abi.encode(oracle.configHash(MARKET)));
+        assertEq(logs[1].topics[0], keccak256("MarketStatusChanged(bytes32,uint8,uint8,uint64)"));
+        assertEq(logs[1].topics[2], bytes32(uint256(1)));
+        assertEq(oracle.registryVersion(), 1);
     }
 }
