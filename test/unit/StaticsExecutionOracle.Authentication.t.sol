@@ -26,4 +26,15 @@ contract ExecutionAuthenticationTest is ExecutionTestBase {
         vm.expectRevert(ExecutionVerifierMock.Unauthenticated.selector);
         oracle.verifyExecutionPrice(MARKET, reports);
     }
+
+    function testVerifierMustReturnOneBodyPerPayload() public {
+        bytes[] memory reports = bundle(report());
+        verifier.setWrongCount(true);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StaticsExecutionOracle.VerifierResponseLengthMismatch.selector, 1, 2
+            )
+        );
+        oracle.verifyExecutionPrice(MARKET, reports);
+    }
 }

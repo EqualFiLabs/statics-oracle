@@ -201,7 +201,10 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     function _authenticate(
         bytes[] calldata fullReports
     ) internal returns (bytes[] memory verified) {
-        return IVerifierProxy(verifierProxy).verifyBulk(fullReports, bytes(""));
+        verified = IVerifierProxy(verifierProxy).verifyBulk(fullReports, bytes(""));
+        if (verified.length != fullReports.length) {
+            revert VerifierResponseLengthMismatch(fullReports.length, verified.length);
+        }
     }
 
     function marketConfig(
