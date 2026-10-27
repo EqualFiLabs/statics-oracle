@@ -56,4 +56,14 @@ contract ExecutionValidationTest is ExecutionTestBase {
         );
         oracle.verifyExecutionPrice(MARKET, reports);
     }
+
+    function testGapExpandedWindowBeyondReviewedBoundFails() public {
+        DataStreamsV3.Report memory r = report();
+        r.validFromTimestamp = 964;
+        bytes[] memory reports = bundle(r);
+        vm.expectRevert(
+            abi.encodeWithSelector(StaticsExecutionOracle.ReportWindowTooWide.selector, 31, 30)
+        );
+        oracle.verifyExecutionPrice(MARKET, reports);
+    }
 }
