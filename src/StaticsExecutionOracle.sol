@@ -7,6 +7,7 @@ import { IAggregatorV3 } from "src/interfaces/IAggregatorV3.sol";
 import { IStaticsExecutionOracle } from "src/interfaces/IStaticsExecutionOracle.sol";
 import { IVerifierProxy } from "src/interfaces/IVerifierProxy.sol";
 import { DataStreamsV3 } from "src/libraries/DataStreamsV3.sol";
+import { OracleMath } from "src/libraries/OracleMath.sol";
 
 /// @notice Transaction-local Data Streams execution adapter for synthetic markets.
 contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
@@ -36,10 +37,13 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     error ReportExpired(uint32 expiresAt, uint256 currentTimestamp);
     error FutureObservation(uint32 observationsTimestamp, uint256 currentTimestamp);
     error ReportWindowTooWide(uint32 width, uint32 maximum);
+    error ReferenceTimestampOutOfRange(uint256 timestamp, uint32 delay);
+    error ReportWindowUnavailable(uint256 referenceTimestamp);
+    error OverlappingReportWindows(uint256 referenceTimestamp, uint256 matches);
     error ZeroAddress();
     error NoContractCode(address account);
     error InvalidBundleBound();
-    error ExecutionNotAvailable();
+
     error OwnershipRenunciationDisabled();
     error InvalidMarketId();
     error InvalidStreamId();
@@ -190,9 +194,10 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     function verifyExecutionPrice(
         bytes32 marketId,
         bytes[] calldata fullReports
-    ) external virtual override returns (ExecutionPrice memory) {
+    ) external override returns (ExecutionPrice memory) {
         if (!_authorizedConsumers[msg.sender]) revert UnauthorizedConsumer(msg.sender);
-        MarketStatus status = _markets[marketId].status;
+        ExecutionMarketConfig memory config = _markets[marketId];
+        MarketStatus status = config.status;
         if (status == MarketStatus.UNSET) revert UnsupportedMarket(marketId);
         if (status != MarketStatus.ENABLED) revert MarketNotEnabled(marketId, status);
         if (fullReports.length == 0) revert EmptyReportBundle();
@@ -200,11 +205,54 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
             revert TooManyReports(fullReports.length, maxReportBundleSize);
         }
         _requireHealthySequencer();
+        uint32 referenceTimestamp = _referenceTimestamp(config.executionDelay);
         bytes[] memory verified = _authenticate(fullReports);
+        (DataStreamsV3.Report memory selected, uint256 matches) =
+            _select(verified, config, referenceTimestamp);
+        if (matches == 0) revert ReportWindowUnavailable(referenceTimestamp);
+        if (matches > 1) revert OverlappingReportWindows(referenceTimestamp, matches);
+        return ExecutionPrice({
+            price1e18: _normalize(selected.price, config.streamDecimals),
+            referenceTimestamp: referenceTimestamp,
+            validFromTimestamp: selected.validFromTimestamp,
+            observationsTimestamp: selected.observationsTimestamp,
+            streamId: selected.feedId
+        });
+    }
+
+    /// @dev Scan every body; never select using unverified payload bytes or array position.
+    function _select(
+        bytes[] memory verified,
+        ExecutionMarketConfig memory config,
+        uint32 referenceTimestamp
+    ) internal view returns (DataStreamsV3.Report memory selected, uint256 matches) {
         for (uint256 i; i < verified.length; ++i) {
-            _decodeAndValidate(verified[i], _markets[marketId]);
+            DataStreamsV3.Report memory candidate = _decodeAndValidate(verified[i], config);
+            if (
+                candidate.validFromTimestamp <= referenceTimestamp
+                    && referenceTimestamp <= candidate.observationsTimestamp
+            ) {
+                selected = candidate;
+                ++matches;
+            }
         }
-        revert ExecutionNotAvailable();
+    }
+
+    function _normalize(
+        int192 price,
+        uint8 decimals
+    ) internal pure returns (uint256) {
+        // Sign validation precedes this conversion for every report.
+        return OracleMath.normalizePrice(uint256(int256(price)), decimals);
+    }
+
+    function _referenceTimestamp(
+        uint32 delay
+    ) internal view returns (uint32) {
+        if (block.timestamp < delay || block.timestamp - delay > type(uint32).max) {
+            revert ReferenceTimestampOutOfRange(block.timestamp, delay);
+        }
+        return uint32(block.timestamp - delay);
     }
 
     function _decodeAndValidate(
