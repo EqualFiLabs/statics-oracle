@@ -5,6 +5,8 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { IAggregatorV3 } from "src/interfaces/IAggregatorV3.sol";
 import { IStaticsExecutionOracle } from "src/interfaces/IStaticsExecutionOracle.sol";
+import { IVerifierProxy } from "src/interfaces/IVerifierProxy.sol";
+import { DataStreamsV3 } from "src/libraries/DataStreamsV3.sol";
 
 /// @notice Transaction-local Data Streams execution adapter for synthetic markets.
 contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
@@ -25,6 +27,10 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     error SequencerGracePeriod(uint256 recoveryStartedAt, uint32 gracePeriod);
     event SequencerConfigUpdated(address indexed feed, uint32 gracePeriod, uint64 indexed version);
 
+    error EmptyReportBundle();
+    error TooManyReports(uint256 supplied, uint256 maximum);
+    error VerifierResponseLengthMismatch(uint256 submitted, uint256 returned);
+    error WrongStreamId(bytes32 expected, bytes32 actual);
     error ZeroAddress();
     error NoContractCode(address account);
     error InvalidBundleBound();
@@ -178,14 +184,41 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
 
     function verifyExecutionPrice(
         bytes32 marketId,
-        bytes[] calldata
+        bytes[] calldata fullReports
     ) external virtual override returns (ExecutionPrice memory) {
         if (!_authorizedConsumers[msg.sender]) revert UnauthorizedConsumer(msg.sender);
         MarketStatus status = _markets[marketId].status;
         if (status == MarketStatus.UNSET) revert UnsupportedMarket(marketId);
         if (status != MarketStatus.ENABLED) revert MarketNotEnabled(marketId, status);
+        if (fullReports.length == 0) revert EmptyReportBundle();
+        if (fullReports.length > maxReportBundleSize) {
+            revert TooManyReports(fullReports.length, maxReportBundleSize);
+        }
         _requireHealthySequencer();
+        bytes[] memory verified = _authenticate(fullReports);
+        for (uint256 i; i < verified.length; ++i) {
+            _decodeAndValidate(verified[i], _markets[marketId]);
+        }
         revert ExecutionNotAvailable();
+    }
+
+    function _decodeAndValidate(
+        bytes memory body,
+        ExecutionMarketConfig memory config
+    ) internal pure returns (DataStreamsV3.Report memory report) {
+        if (config.streamId == bytes32(0)) revert InvalidStreamId();
+        report = DataStreamsV3.decode(body);
+        if (report.feedId != config.streamId) revert WrongStreamId(config.streamId, report.feedId);
+        return report;
+    }
+
+    function _authenticate(
+        bytes[] calldata fullReports
+    ) internal returns (bytes[] memory verified) {
+        verified = IVerifierProxy(verifierProxy).verifyBulk(fullReports, bytes(""));
+        if (verified.length != fullReports.length) {
+            revert VerifierResponseLengthMismatch(fullReports.length, verified.length);
+        }
     }
 
     function marketConfig(
