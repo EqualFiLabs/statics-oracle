@@ -15,6 +15,14 @@ Production timing, the immutable bundle bound, downstream economic qualification
 and BucketPerps integration remain separate release prerequisites. Development
 parameters and local tests do not establish production readiness.
 
+## Checkpoint A
+
+Configuration lifecycle and consumer/sequencer administration pass focused local
+Foundry tests. Invalid transitions and unauthorized mutations fail, and failed
+configuration changes preserve the registry version. Existing NAV sequencer tests
+also pass. Verification remains unavailable until the authenticated selection
+path is complete; this checkpoint is not an execution or deployment claim.
+
 ## Progress
 
 - 1.1–1.3 Consumer ABI, bulk verifier ABI and V3 types defined.
