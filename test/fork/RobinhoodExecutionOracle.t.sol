@@ -101,4 +101,25 @@ contract RobinhoodExecutionOracleForkTest is ExecutionForkBase {
         assertEq(got.observationsTimestamp, selected.observationsTimestamp);
         assertEq(got.referenceTimestamp, block.timestamp - delay);
     }
+
+    function testDeployedSequencerHealthRecoveryAndLeaseExpiry() public {
+        forkNetwork(0);
+        address feed = vm.parseJsonAddress(bindings, key(0, "sequencerFeed"));
+        assertEq(feed.codehash, vm.parseJsonBytes32(bindings, key(0, "sequencerCodeHash")));
+        (, int256 answer, uint256 startedAt,,) = IAggregatorV3(feed).latestRoundData();
+        assertEq(answer, 0);
+        ExecutionSequencerGateHarness oracle = new ExecutionSequencerGateHarness(proxy(0));
+        oracle.setSequencerConfig(feed, 3600);
+        oracle.checkHealth();
+        vm.warp(startedAt + 3600);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StaticsExecutionOracle.SequencerGracePeriod.selector, startedAt, 3600
+            )
+        );
+        oracle.checkHealth();
+        vm.warp(RobinhoodSequencerAvailabilityFeed(feed).healthyUntil() + 1);
+        vm.expectRevert(StaticsExecutionOracle.SequencerDown.selector);
+        oracle.checkHealth();
+    }
 }
