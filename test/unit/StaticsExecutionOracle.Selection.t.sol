@@ -27,4 +27,22 @@ contract ExecutionSelectionTest is ExecutionTestBase {
         );
         oracle.verifyExecutionPrice(MARKET, reports);
     }
+
+    function testUnavailableAndDuplicatedMatchingWindowsFail() public {
+        DataStreamsV3.Report memory r = report();
+        r.validFromTimestamp = 950;
+        r.observationsTimestamp = 960;
+        bytes[] memory reports = bundle(r);
+        vm.expectRevert(
+            abi.encodeWithSelector(StaticsExecutionOracle.ReportWindowUnavailable.selector, 990)
+        );
+        oracle.verifyExecutionPrice(MARKET, reports);
+        reports = new bytes[](2);
+        reports[0] = signed(report());
+        reports[1] = reports[0];
+        vm.expectRevert(
+            abi.encodeWithSelector(StaticsExecutionOracle.OverlappingReportWindows.selector, 990, 2)
+        );
+        oracle.verifyExecutionPrice(MARKET, reports);
+    }
 }

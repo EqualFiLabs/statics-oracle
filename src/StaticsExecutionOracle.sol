@@ -207,8 +207,9 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
         bytes[] memory verified = _authenticate(fullReports);
         (DataStreamsV3.Report memory selected, uint256 matches) =
             _select(verified, _markets[marketId], referenceTimestamp);
+        if (matches == 0) revert ReportWindowUnavailable(referenceTimestamp);
+        if (matches > 1) revert OverlappingReportWindows(referenceTimestamp, matches);
         selected;
-        matches;
         revert ExecutionNotAvailable();
     }
 
