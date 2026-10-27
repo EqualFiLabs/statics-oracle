@@ -24,6 +24,7 @@ library DataStreamsV3 {
         uint192 nativeFee;
         uint192 linkFee;
         uint32 expiresAt;
+        // Sole execution price. Fees, bid and ask are decoded for schema compatibility only.
         int192 price;
         int192 bid;
         int192 ask;
