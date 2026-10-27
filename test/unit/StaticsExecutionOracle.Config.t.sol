@@ -75,4 +75,22 @@ contract ExecutionConfigTest is Test {
         );
         oracle.registerMarket(MARKET, cfg);
     }
+
+    function testEnableRequiresReviewedCandidate() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(StaticsExecutionOracle.UnsupportedMarket.selector, MARKET)
+        );
+        oracle.enableMarket(MARKET);
+        oracle.registerMarket(MARKET, input());
+        oracle.enableMarket(MARKET);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StaticsExecutionOracle.InvalidMarketStatusTransition.selector,
+                MARKET,
+                IEO.MarketStatus.ENABLED,
+                IEO.MarketStatus.ENABLED
+            )
+        );
+        oracle.enableMarket(MARKET);
+    }
 }
