@@ -32,6 +32,7 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     error VerifierResponseLengthMismatch(uint256 submitted, uint256 returned);
     error WrongStreamId(bytes32 expected, bytes32 actual);
     error InvalidReportPrice(int192 price);
+    error InvalidReportTimestampOrder(uint32 validFromTimestamp, uint32 observationsTimestamp);
     error ZeroAddress();
     error NoContractCode(address account);
     error InvalidBundleBound();
@@ -211,6 +212,11 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
         report = DataStreamsV3.decode(body);
         if (report.feedId != config.streamId) revert WrongStreamId(config.streamId, report.feedId);
         if (report.price <= 0) revert InvalidReportPrice(report.price);
+        if (report.validFromTimestamp > report.observationsTimestamp) {
+            revert InvalidReportTimestampOrder(
+                report.validFromTimestamp, report.observationsTimestamp
+            );
+        }
         return report;
     }
 

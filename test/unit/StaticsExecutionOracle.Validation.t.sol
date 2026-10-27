@@ -20,4 +20,16 @@ contract ExecutionValidationTest is ExecutionTestBase {
         );
         oracle.verifyExecutionPrice(MARKET, reports);
     }
+
+    function testReversedSignedWindowFails() public {
+        DataStreamsV3.Report memory r = report();
+        r.validFromTimestamp = 996;
+        bytes[] memory reports = bundle(r);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StaticsExecutionOracle.InvalidReportTimestampOrder.selector, 996, 995
+            )
+        );
+        oracle.verifyExecutionPrice(MARKET, reports);
+    }
 }
