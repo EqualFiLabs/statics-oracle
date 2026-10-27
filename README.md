@@ -130,3 +130,12 @@ Block-pinned fork tests read the checked-in manifest and skip when the RPC varia
 ```bash
 forge test --match-path 'test/fork/*.t.sol'
 ```
+
+## BucketPerps execution oracle
+
+Synthetic execution pricing uses the separate atomic execution adapter and a
+dedicated protected report relay. See the [delivery evidence](docs/EXECUTION_ORACLE_DELIVERY.md),
+[relay operations](report-relay/README.md) and
+[BucketPerps integration handoff](docs/BUCKETPERPS_EXECUTION_HANDOFF.md).
+Candidate manifests remain unenabled, and real signed subscription authentication
+is pending a licensed private capture. No execution deployment has been broadcast.
