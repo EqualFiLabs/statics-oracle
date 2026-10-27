@@ -40,7 +40,7 @@ export class ReportBuffer {
   recoveryStart(now=this.#clock()) {
     const floor=Math.max(0,now-this.#market.executionDelay-Math.min(this.#market.maxReportWindow,300));
     const current=this.#reports.filter(item=>item.observed>=floor);
-    if(!current.length)return floor;
+    if(!current.some(item=>item.from<=now-this.#market.executionDelay&&now-this.#market.executionDelay<=item.observed))return floor;
     for(let i=1;i<current.length;++i)if(current[i].from>current[i-1].observed+1)return Math.max(floor,current[i-1].observed+1);
     return Math.max(floor,current.at(-1).observed+1);
   }

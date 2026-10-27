@@ -9,7 +9,7 @@ export function createSource({env=process.env,chainId,clientFactory=createClient
     async start(ids,onReport,onStatus) {
       if(stream)throw new Error("source already started");allowed=new Set(ids.map(x=>x.toLowerCase()));
       stream=client.createStream([...allowed],{maxReconnectAttempts:100,reconnectInterval:1000});
-      stream.on("report",report=>{if(allowed.has(report?.feedID?.toLowerCase()))onReport(report);else onStatus("unsupported-report");});
+      stream.on("report",report=>{if(typeof report?.feedID==="string"&&allowed.has(report.feedID.toLowerCase()))onReport(report);else onStatus("unsupported-report");});
       stream.on("error",()=>onStatus("upstream-error"));
       stream.on("disconnected",()=>onStatus("disconnected"));
       stream.on("reconnecting",()=>onStatus("reconnecting"));

@@ -11,7 +11,7 @@ export class Relay {
   }
   ingest(report) {
     if(this.#stopped)return;
-    const labels=this.#streams.get(report?.feedID?.toLowerCase());if(!labels){++this.metrics.unsupportedReports;return;}
+    const labels=this.#streams.get(typeof report?.feedID==="string"?report.feedID.toLowerCase():undefined);if(!labels){++this.metrics.unsupportedReports;return;}
     for(const label of labels)this.#buffers.get(label).add(report);
   }
   async recover(label) {
