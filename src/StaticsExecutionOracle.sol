@@ -43,7 +43,7 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     error ZeroAddress();
     error NoContractCode(address account);
     error InvalidBundleBound();
-    error ExecutionNotAvailable();
+
     error OwnershipRenunciationDisabled();
     error InvalidMarketId();
     error InvalidStreamId();
@@ -194,9 +194,10 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     function verifyExecutionPrice(
         bytes32 marketId,
         bytes[] calldata fullReports
-    ) external virtual override returns (ExecutionPrice memory) {
+    ) external override returns (ExecutionPrice memory) {
         if (!_authorizedConsumers[msg.sender]) revert UnauthorizedConsumer(msg.sender);
-        MarketStatus status = _markets[marketId].status;
+        ExecutionMarketConfig memory config = _markets[marketId];
+        MarketStatus status = config.status;
         if (status == MarketStatus.UNSET) revert UnsupportedMarket(marketId);
         if (status != MarketStatus.ENABLED) revert MarketNotEnabled(marketId, status);
         if (fullReports.length == 0) revert EmptyReportBundle();
@@ -204,14 +205,19 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
             revert TooManyReports(fullReports.length, maxReportBundleSize);
         }
         _requireHealthySequencer();
-        uint32 referenceTimestamp = _referenceTimestamp(_markets[marketId].executionDelay);
+        uint32 referenceTimestamp = _referenceTimestamp(config.executionDelay);
         bytes[] memory verified = _authenticate(fullReports);
         (DataStreamsV3.Report memory selected, uint256 matches) =
-            _select(verified, _markets[marketId], referenceTimestamp);
+            _select(verified, config, referenceTimestamp);
         if (matches == 0) revert ReportWindowUnavailable(referenceTimestamp);
         if (matches > 1) revert OverlappingReportWindows(referenceTimestamp, matches);
-        _normalize(selected.price, _markets[marketId].streamDecimals);
-        revert ExecutionNotAvailable();
+        return ExecutionPrice({
+            price1e18: _normalize(selected.price, config.streamDecimals),
+            referenceTimestamp: referenceTimestamp,
+            validFromTimestamp: selected.validFromTimestamp,
+            observationsTimestamp: selected.observationsTimestamp,
+            streamId: selected.feedId
+        });
     }
 
     /// @dev Scan every body; never select using unverified payload bytes or array position.

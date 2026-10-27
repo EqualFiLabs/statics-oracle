@@ -45,4 +45,29 @@ contract ExecutionSelectionTest is ExecutionTestBase {
         );
         oracle.verifyExecutionPrice(MARKET, reports);
     }
+
+    function testReturnsAuthenticatedPriceAndCompleteMetadata() public {
+        IEO.ExecutionPrice memory got = oracle.verifyExecutionPrice(MARKET, bundle(report()));
+        assertEq(got.price1e18, 1_234_567_890_000_000_000);
+        assertEq(got.referenceTimestamp, 990);
+        assertEq(got.validFromTimestamp, 985);
+        assertEq(got.observationsTimestamp, 995);
+        assertEq(got.streamId, STREAM);
+    }
+
+    function testUnorderedBundleAndNonmatchingDuplicatesDoNotChangePrice() public {
+        DataStreamsV3.Report memory old = report();
+        old.validFromTimestamp = 950;
+        old.observationsTimestamp = 960;
+        old.price = 1;
+        bytes[] memory reports = new bytes[](3);
+        reports[0] = signed(old);
+        reports[1] = signed(report());
+        reports[2] = reports[0];
+        IEO.ExecutionPrice memory a = oracle.verifyExecutionPrice(MARKET, reports);
+        (reports[0], reports[1]) = (reports[1], reports[0]);
+        IEO.ExecutionPrice memory b = oracle.verifyExecutionPrice(MARKET, reports);
+        assertEq(abi.encode(a), abi.encode(b));
+        assertEq(a.price1e18, 1_234_567_890_000_000_000);
+    }
 }
