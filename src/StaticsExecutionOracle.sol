@@ -166,10 +166,11 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
         return _markets[marketId];
     }
 
+    /// @notice Commits to the market identity, all parameters and lifecycle state.
     function configHash(
-        bytes32
+        bytes32 marketId
     ) external view override returns (bytes32) {
-        return bytes32(0);
+        return keccak256(abi.encode(marketId, _markets[marketId]));
     }
 
     function sequencerConfig() external view override returns (SequencerConfig memory) {

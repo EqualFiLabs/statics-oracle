@@ -136,4 +136,19 @@ contract ExecutionConfigTest is Test {
         assertEq(uint8(oracle.marketConfig(MARKET).status), uint8(IEO.MarketStatus.CANDIDATE));
         oracle.enableMarket(MARKET);
     }
+
+    function testRejectedMutationsPreserveVersionAndHashTracksLifecycle() public {
+        oracle.registerMarket(MARKET, input());
+        bytes32 candidate = oracle.configHash(MARKET);
+        oracle.enableMarket(MARKET);
+        assertNotEq(candidate, oracle.configHash(MARKET));
+        uint64 version = oracle.registryVersion();
+        vm.expectRevert();
+        oracle.updateMarket(MARKET, input());
+        assertEq(oracle.registryVersion(), version);
+        oracle.disableMarket(MARKET);
+        oracle.updateMarket(MARKET, input());
+        assertEq(candidate, oracle.configHash(MARKET));
+        assertEq(oracle.registryVersion(), version + 2);
+    }
 }
