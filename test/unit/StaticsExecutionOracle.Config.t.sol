@@ -93,4 +93,28 @@ contract ExecutionConfigTest is Test {
         );
         oracle.enableMarket(MARKET);
     }
+
+    function testDisablingDoesNotAllowDirectReenable() public {
+        oracle.registerMarket(MARKET, input());
+        oracle.enableMarket(MARKET);
+        oracle.disableMarket(MARKET);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StaticsExecutionOracle.InvalidMarketStatusTransition.selector,
+                MARKET,
+                IEO.MarketStatus.DISABLED,
+                IEO.MarketStatus.ENABLED
+            )
+        );
+        oracle.enableMarket(MARKET);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StaticsExecutionOracle.InvalidMarketStatusTransition.selector,
+                MARKET,
+                IEO.MarketStatus.DISABLED,
+                IEO.MarketStatus.DISABLED
+            )
+        );
+        oracle.disableMarket(MARKET);
+    }
 }
