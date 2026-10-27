@@ -5,6 +5,7 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { IAggregatorV3 } from "src/interfaces/IAggregatorV3.sol";
 import { IStaticsExecutionOracle } from "src/interfaces/IStaticsExecutionOracle.sol";
+import { IVerifierProxy } from "src/interfaces/IVerifierProxy.sol";
 
 /// @notice Transaction-local Data Streams execution adapter for synthetic markets.
 contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
@@ -193,7 +194,14 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
             revert TooManyReports(fullReports.length, maxReportBundleSize);
         }
         _requireHealthySequencer();
+        _authenticate(fullReports);
         revert ExecutionNotAvailable();
+    }
+
+    function _authenticate(
+        bytes[] calldata fullReports
+    ) internal returns (bytes[] memory verified) {
+        return IVerifierProxy(verifierProxy).verifyBulk(fullReports, bytes(""));
     }
 
     function marketConfig(

@@ -15,4 +15,15 @@ contract ExecutionAuthenticationTest is ExecutionTestBase {
         );
         oracle.verifyExecutionPrice(MARKET, new bytes[](6));
     }
+
+    function testCompleteBundleUsesSubscriptionVerifierAndBubblesFailure() public {
+        bytes[] memory reports = new bytes[](2);
+        reports[0] = hex"aabb";
+        reports[1] = hex"ccdd";
+        vm.expectCall(
+            address(verifier), 0, abi.encodeCall(IVerifierProxy.verifyBulk, (reports, bytes("")))
+        );
+        vm.expectRevert(ExecutionVerifierMock.Unauthenticated.selector);
+        oracle.verifyExecutionPrice(MARKET, reports);
+    }
 }
