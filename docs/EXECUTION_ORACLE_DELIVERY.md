@@ -17,4 +17,7 @@ parameters and local tests do not establish production readiness.
 
 ## Progress
 
-- 1.1 Consumer interface defined; economic types excluded.
+- 1.1–1.3 Consumer ABI, bulk verifier ABI and V3 types defined.
+- 1.4 Reuse OpenZeppelin Ownable2Step, IAggregatorV3 and OracleMath.
+  Supported stream precision is 0–18; higher precision fails instead of truncating.
+  Existing NAV and sequencer contracts remain unchanged.
