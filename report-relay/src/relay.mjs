@@ -46,10 +46,11 @@ export class Relay {
       if(status==="reconnecting")++this.metrics.reconnects;
       this.onStatus(status);
     });
-    await this.recoverAll();this.#timer=setInterval(()=>void this.recoverAll(),10000);this.#timer.unref();
+    if(this.#stopped)return;await this.recoverAll();if(this.#stopped)return;this.#timer=setInterval(()=>void this.recoverAll(),10000);this.#timer.unref();
   }
   async stop(){this.#stopped=true;clearInterval(this.#timer);await this.#source.close();await Promise.allSettled([...this.#inflight.values()]);this.metrics.connected=false;}
   reports(label) {
+    if(this.#stopped)throw new AvailabilityError();
     const buffer=this.#buffers.get(label);if(!buffer)throw new Error("unsupported market");
     const market=this.#config.markets.find(row=>row.label===label);const now=this.#clock();
     return {marketId:label,streamId:market.streamId,reports:buffer.bundle(this.#config.bundleSize,now),servedAt:now};
