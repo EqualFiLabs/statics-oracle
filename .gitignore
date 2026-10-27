@@ -18,3 +18,6 @@ node_modules/
 .DS_Store
 .idea/
 .vscode/
+
+# Licensed execution-report captures are local-only.
+config/.execution-report-fixture.local.json
