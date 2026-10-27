@@ -70,4 +70,48 @@ contract ExecutionSelectionTest is ExecutionTestBase {
         assertEq(abi.encode(a), abi.encode(b));
         assertEq(a.price1e18, 1_234_567_890_000_000_000);
     }
+
+    function testSignedWindowBoundariesAreInclusive() public {
+        DataStreamsV3.Report memory r = report();
+        r.validFromTimestamp = 990;
+        assertEq(
+            oracle.verifyExecutionPrice(MARKET, bundle(r)).price1e18, 1_234_567_890_000_000_000
+        );
+        r.validFromTimestamp = 985;
+        r.observationsTimestamp = 990;
+        assertEq(
+            oracle.verifyExecutionPrice(MARKET, bundle(r)).price1e18, 1_234_567_890_000_000_000
+        );
+        r.validFromTimestamp = 990;
+        assertEq(oracle.verifyExecutionPrice(MARKET, bundle(r)).referenceTimestamp, 990);
+    }
+
+    function testSharedBoundaryIsAmbiguousAndOmittedMatchCannotSubstitutePrice() public {
+        DataStreamsV3.Report memory left = report();
+        left.validFromTimestamp = 980;
+        left.observationsTimestamp = 990;
+        DataStreamsV3.Report memory right = report();
+        right.validFromTimestamp = 990;
+        bytes[] memory reports = new bytes[](2);
+        reports[0] = signed(left);
+        reports[1] = signed(right);
+        vm.expectRevert(
+            abi.encodeWithSelector(StaticsExecutionOracle.OverlappingReportWindows.selector, 990, 2)
+        );
+        oracle.verifyExecutionPrice(MARKET, reports);
+        right.validFromTimestamp = 991;
+        reports = bundle(right);
+        vm.expectRevert(
+            abi.encodeWithSelector(StaticsExecutionOracle.ReportWindowUnavailable.selector, 990)
+        );
+        oracle.verifyExecutionPrice(MARKET, reports);
+    }
+
+    function testExecutionDoesNotWriteOracleStorage() public {
+        bytes[] memory reports = bundle(report());
+        vm.record();
+        oracle.verifyExecutionPrice(MARKET, reports);
+        (, bytes32[] memory writes) = vm.accesses(address(oracle));
+        assertEq(writes.length, 0);
+    }
 }
