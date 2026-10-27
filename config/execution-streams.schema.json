@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Reviewed execution stream manifest",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "chainId",
+    "verifierProxy",
+    "verifierCodeHash",
+    "maxReportBundleSize",
+    "markets"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "chainId": {
+      "enum": [
+        4663,
+        46630
+      ]
+    },
+    "verifierProxy": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{40}$"
+    },
+    "verifierCodeHash": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{64}$"
+    },
+    "maxReportBundleSize": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "maximum": 255
+    },
+    "markets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "label",
+          "marketId",
+          "streamId",
+          "reportSchema",
+          "streamDecimals",
+          "status",
+          "executionDelay",
+          "maxReportWindow",
+          "verification"
+        ],
+        "properties": {
+          "reportSchema": {
+            "const": 3
+          },
+          "streamDecimals": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 18
+          },
+          "status": {
+            "enum": [
+              "CANDIDATE",
+              "ENABLED",
+              "DISABLED"
+            ]
+          },
+          "executionDelay": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 4294967295
+          },
+          "maxReportWindow": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 4294967295
+          }
+        }
+      }
+    }
+  }
+}

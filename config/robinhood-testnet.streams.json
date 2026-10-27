@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "chainId": 46630,
+  "verifierProxy": "0x72790f9eB82db492a7DDb6d2af22A270Dcc3Db64",
+  "verifierCodeHash": "0x4bd86e898b2952f6f0d20fee037accf52490dbdd9279345cd4b0a7161b5c022b",
+  "verifierSource": "https://docs.chain.link/data-streams/supported-networks",
+  "verifiedBlock": 143784728,
+  "productionParametersRatified": false,
+  "maxReportBundleSize": null,
+  "sequencer": {
+    "feed": null,
+    "codeHash": null,
+    "gracePeriod": null
+  },
+  "markets": [
+    {
+      "label": "BTC_USD",
+      "marketId": "0x9eacd87d40a22d0633c4d8abeff80d2d24381bf28e23114db31509c61553d01b",
+      "streamId": "0x00037da06d56d083fe599397a4769a042d63aa73dc4ef57709d31e9971a5b439",
+      "reportSchema": 3,
+      "streamDecimals": 18,
+      "status": "CANDIDATE",
+      "executionDelay": null,
+      "maxReportWindow": null,
+      "verification": {
+        "source": "https://docs.chain.link/data-streams/crypto-streams",
+        "directoryName": "BTC/USD-RefPrice-DSSepolia-Premium-GlobalTestnet-003",
+        "directoryPath": "btc-usd-ref-price-plus-sepolia-prod-v03",
+        "directoryStatus": "testing",
+        "directorySourceChain": 421614,
+        "verifiedAt": "2026-10-27",
+        "deprecationCheckedAt": "2026-10-27",
+        "authenticatedOnRobinhood": false
+      }
+    },
+    {
+      "label": "ETH_USD",
+      "marketId": "0x7ffda7a2f43427562e5fee12d8c875cfc089dab65bc5edaa49a9737c5c49338c",
+      "streamId": "0x000359843a543ee2fe414dc14c7e7920ef10f4372990b79d6361cdc0dd1ba782",
+      "reportSchema": 3,
+      "streamDecimals": 18,
+      "status": "CANDIDATE",
+      "executionDelay": null,
+      "maxReportWindow": null,
+      "verification": {
+        "source": "https://docs.chain.link/data-streams/crypto-streams",
+        "directoryName": "ETH/USD-RefPrice-DSSepolia-Premium-GlobalTestnet-003",
+        "directoryPath": "eth-usd-ref-price-plus-sepolia-prod-v03",
+        "directoryStatus": "testing",
+        "directorySourceChain": 421614,
+        "verifiedAt": "2026-10-27",
+        "deprecationCheckedAt": "2026-10-27",
+        "authenticatedOnRobinhood": false
+      }
+    }
+  ]
+}

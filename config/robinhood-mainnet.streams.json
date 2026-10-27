@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "chainId": 4663,
+  "verifierProxy": "0xcE73c8ad08CBDEaCa6078BF0627C8fe0a9a536E7",
+  "verifierCodeHash": "0x4bd86e898b2952f6f0d20fee037accf52490dbdd9279345cd4b0a7161b5c022b",
+  "verifierSource": "https://docs.chain.link/data-streams/supported-networks",
+  "verifiedBlock": 99517116,
+  "productionParametersRatified": false,
+  "maxReportBundleSize": null,
+  "sequencer": {
+    "feed": "0xeCe3F60De85705472292a44787123a8Fc46CDa54",
+    "codeHash": "0x7768b4390fd3a9d6d83c9e8aaa20d4063bf1438f48b296623ab20258dd5fe653",
+    "gracePeriod": 3600
+  },
+  "markets": [
+    {
+      "label": "BTC_USD",
+      "marketId": "0x9eacd87d40a22d0633c4d8abeff80d2d24381bf28e23114db31509c61553d01b",
+      "streamId": "0x00039d9e45394f473ab1f050a1b963e6b05351e52d71e507509ada0c95ed75b8",
+      "reportSchema": 3,
+      "streamDecimals": 18,
+      "status": "CANDIDATE",
+      "executionDelay": null,
+      "maxReportWindow": null,
+      "verification": {
+        "source": "https://docs.chain.link/data-streams/crypto-streams",
+        "directoryName": "BTC/USD-RefPrice-DS-Premium-Global-003",
+        "directoryPath": "btc-usd-premium-prod",
+        "directoryStatus": "live",
+        "directorySourceChain": 42161,
+        "verifiedAt": "2026-10-27",
+        "deprecationCheckedAt": "2026-10-27",
+        "authenticatedOnRobinhood": false
+      }
+    },
+    {
+      "label": "ETH_USD",
+      "marketId": "0x7ffda7a2f43427562e5fee12d8c875cfc089dab65bc5edaa49a9737c5c49338c",
+      "streamId": "0x000362205e10b3a147d02792eccee483dca6c7b44ecce7012cb8c6e0b68b3ae9",
+      "reportSchema": 3,
+      "streamDecimals": 18,
+      "status": "CANDIDATE",
+      "executionDelay": null,
+      "maxReportWindow": null,
+      "verification": {
+        "source": "https://docs.chain.link/data-streams/crypto-streams",
+        "directoryName": "ETH/USD-RefPrice-DS-Premium-Global-003",
+        "directoryPath": "eth-usd-premium-prod",
+        "directoryStatus": "live",
+        "directorySourceChain": 42161,
+        "verifiedAt": "2026-10-27",
+        "deprecationCheckedAt": "2026-10-27",
+        "authenticatedOnRobinhood": false
+      }
+    }
+  ]
+}

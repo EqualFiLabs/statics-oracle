@@ -47,6 +47,9 @@ jobs:
           npm run check
           npm test
 
+      - name: Test execution manifest tooling
+        run: node --test scripts/execution/*.test.mjs
+
       - name: Check recorded sequencer configuration
         run: node scripts/verify-sequencer-config.mjs
 
