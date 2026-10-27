@@ -205,10 +205,29 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
         _requireHealthySequencer();
         uint32 referenceTimestamp = _referenceTimestamp(_markets[marketId].executionDelay);
         bytes[] memory verified = _authenticate(fullReports);
-        for (uint256 i; i < verified.length; ++i) {
-            _decodeAndValidate(verified[i], _markets[marketId]);
-        }
+        (DataStreamsV3.Report memory selected, uint256 matches) =
+            _select(verified, _markets[marketId], referenceTimestamp);
+        selected;
+        matches;
         revert ExecutionNotAvailable();
+    }
+
+    /// @dev Scan every body; never select using unverified payload bytes or array position.
+    function _select(
+        bytes[] memory verified,
+        ExecutionMarketConfig memory config,
+        uint32 referenceTimestamp
+    ) internal view returns (DataStreamsV3.Report memory selected, uint256 matches) {
+        for (uint256 i; i < verified.length; ++i) {
+            DataStreamsV3.Report memory candidate = _decodeAndValidate(verified[i], config);
+            if (
+                candidate.validFromTimestamp <= referenceTimestamp
+                    && referenceTimestamp <= candidate.observationsTimestamp
+            ) {
+                selected = candidate;
+                ++matches;
+            }
+        }
     }
 
     function _referenceTimestamp(
