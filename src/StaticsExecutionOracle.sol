@@ -113,6 +113,23 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
         emit MarketStatusChanged(marketId, previous, MarketStatus.DISABLED, ++registryVersion);
     }
 
+    function updateMarket(
+        bytes32 marketId,
+        ExecutionMarketConfigInput calldata input
+    ) external onlyOwner {
+        MarketStatus previous = _markets[marketId].status;
+        if (previous == MarketStatus.UNSET) revert UnsupportedMarket(marketId);
+        if (previous != MarketStatus.DISABLED) revert MarketMustBeDisabled(marketId, previous);
+        _validateConfig(input);
+        ExecutionMarketConfig memory config = _toConfig(input);
+        _markets[marketId] = config;
+        uint64 version = ++registryVersion;
+        emit MarketUpdated(
+            marketId, config.streamId, version, keccak256(abi.encode(marketId, config))
+        );
+        emit MarketStatusChanged(marketId, previous, MarketStatus.CANDIDATE, version);
+    }
+
     function _validateConfig(
         ExecutionMarketConfigInput memory input
     ) internal pure {

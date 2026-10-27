@@ -117,4 +117,23 @@ contract ExecutionConfigTest is Test {
         );
         oracle.disableMarket(MARKET);
     }
+
+    function testStreamReplacementRequiresDisableAndReview() public {
+        oracle.registerMarket(MARKET, input());
+        oracle.enableMarket(MARKET);
+        IEO.ExecutionMarketConfigInput memory next = input();
+        next.streamId = bytes32((uint256(3) << 240) | 5678);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StaticsExecutionOracle.MarketMustBeDisabled.selector,
+                MARKET,
+                IEO.MarketStatus.ENABLED
+            )
+        );
+        oracle.updateMarket(MARKET, next);
+        oracle.disableMarket(MARKET);
+        oracle.updateMarket(MARKET, next);
+        assertEq(uint8(oracle.marketConfig(MARKET).status), uint8(IEO.MarketStatus.CANDIDATE));
+        oracle.enableMarket(MARKET);
+    }
 }
