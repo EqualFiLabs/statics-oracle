@@ -10,6 +10,7 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     address public immutable override verifierProxy;
     uint8 public immutable override maxReportBundleSize;
     uint64 public override registryVersion;
+    mapping(bytes32 marketId => ExecutionMarketConfig) private _markets;
 
     error ZeroAddress();
     error NoContractCode(address account);
@@ -41,9 +42,9 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     }
 
     function marketConfig(
-        bytes32
+        bytes32 marketId
     ) external view override returns (ExecutionMarketConfig memory) {
-        return ExecutionMarketConfig(bytes32(0), 0, 0, 0, MarketStatus.UNSET);
+        return _markets[marketId];
     }
 
     function configHash(
