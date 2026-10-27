@@ -35,4 +35,17 @@ contract ExecutionConfigTest is Test {
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableInvalidOwner.selector, address(0)));
         new StaticsExecutionOracle(address(0), verifier, 5);
     }
+
+    function testOwnershipRequiresAcceptanceAndCannotBeAbandoned() public {
+        vm.expectRevert(StaticsExecutionOracle.OwnershipRenunciationDisabled.selector);
+        oracle.renounceOwnership();
+        oracle.transferOwnership(address(123));
+        assertEq(oracle.owner(), address(this));
+        vm.prank(address(123));
+        oracle.acceptOwnership();
+        vm.expectRevert(
+            abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this))
+        );
+        oracle.transferOwnership(address(456));
+    }
 }

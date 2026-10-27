@@ -15,6 +15,7 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     error NoContractCode(address account);
     error InvalidBundleBound();
     error ExecutionNotAvailable();
+    error OwnershipRenunciationDisabled();
 
     constructor(
         address initialOwner,
@@ -26,6 +27,10 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
         if (maxReportBundleSize_ == 0) revert InvalidBundleBound();
         verifierProxy = verifierProxy_;
         maxReportBundleSize = maxReportBundleSize_;
+    }
+
+    function renounceOwnership() public pure override {
+        revert OwnershipRenunciationDisabled();
     }
 
     function verifyExecutionPrice(
