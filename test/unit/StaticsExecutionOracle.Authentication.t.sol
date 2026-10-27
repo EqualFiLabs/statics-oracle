@@ -54,4 +54,16 @@ contract ExecutionAuthenticationTest is ExecutionTestBase {
         );
         oracle.verifyExecutionPrice(MARKET, reports);
     }
+
+    function testWrongAndMixedStreamsFailEvenAfterAuthentication() public {
+        DataStreamsV3.Report memory r = report();
+        r.feedId = bytes32((uint256(3) << 240) | 5678);
+        bytes[] memory reports = new bytes[](2);
+        reports[0] = signed(report());
+        reports[1] = signed(r);
+        vm.expectRevert(
+            abi.encodeWithSelector(StaticsExecutionOracle.WrongStreamId.selector, STREAM, r.feedId)
+        );
+        oracle.verifyExecutionPrice(MARKET, reports);
+    }
 }

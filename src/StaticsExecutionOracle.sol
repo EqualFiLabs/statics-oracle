@@ -206,8 +206,9 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
         bytes memory body,
         ExecutionMarketConfig memory config
     ) internal pure returns (DataStreamsV3.Report memory report) {
-        config;
+        if (config.streamId == bytes32(0)) revert InvalidStreamId();
         report = DataStreamsV3.decode(body);
+        if (report.feedId != config.streamId) revert WrongStreamId(config.streamId, report.feedId);
         return report;
     }
 
