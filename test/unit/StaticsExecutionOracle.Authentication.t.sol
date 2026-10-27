@@ -37,4 +37,21 @@ contract ExecutionAuthenticationTest is ExecutionTestBase {
         );
         oracle.verifyExecutionPrice(MARKET, reports);
     }
+
+    function testMalformedAndUnsupportedAuthenticatedBodiesFailClosed() public {
+        bytes[] memory reports = new bytes[](1);
+        reports[0] = hex"aabb";
+        verifier.accept(reports[0], hex"01");
+        vm.expectRevert(abi.encodeWithSelector(DataStreamsV3.InvalidReportLength.selector, 1));
+        oracle.verifyExecutionPrice(MARKET, reports);
+        DataStreamsV3.Report memory r = report();
+        r.feedId = bytes32(uint256(2) << 240);
+        verifier.accept(reports[0], abi.encode(r));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DataStreamsV3.UnsupportedReportSchema.selector, bytes2(uint16(2))
+            )
+        );
+        oracle.verifyExecutionPrice(MARKET, reports);
+    }
 }
