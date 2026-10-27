@@ -46,4 +46,14 @@ contract ExecutionValidationTest is ExecutionTestBase {
         );
         oracle.verifyExecutionPrice(MARKET, reports);
     }
+
+    function testFutureObservationsHaveNoImplicitTolerance() public {
+        DataStreamsV3.Report memory r = report();
+        r.observationsTimestamp = 1001;
+        bytes[] memory reports = bundle(r);
+        vm.expectRevert(
+            abi.encodeWithSelector(StaticsExecutionOracle.FutureObservation.selector, 1001, 1000)
+        );
+        oracle.verifyExecutionPrice(MARKET, reports);
+    }
 }

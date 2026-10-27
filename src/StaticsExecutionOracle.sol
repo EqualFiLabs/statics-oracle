@@ -34,6 +34,7 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     error InvalidReportPrice(int192 price);
     error InvalidReportTimestampOrder(uint32 validFromTimestamp, uint32 observationsTimestamp);
     error ReportExpired(uint32 expiresAt, uint256 currentTimestamp);
+    error FutureObservation(uint32 observationsTimestamp, uint256 currentTimestamp);
     error ZeroAddress();
     error NoContractCode(address account);
     error InvalidBundleBound();
@@ -220,6 +221,9 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
         }
         if (report.expiresAt < block.timestamp) {
             revert ReportExpired(report.expiresAt, block.timestamp);
+        }
+        if (report.observationsTimestamp > block.timestamp) {
+            revert FutureObservation(report.observationsTimestamp, block.timestamp);
         }
         return report;
     }
