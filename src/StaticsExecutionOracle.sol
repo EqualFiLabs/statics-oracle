@@ -7,6 +7,7 @@ import { IAggregatorV3 } from "src/interfaces/IAggregatorV3.sol";
 import { IStaticsExecutionOracle } from "src/interfaces/IStaticsExecutionOracle.sol";
 import { IVerifierProxy } from "src/interfaces/IVerifierProxy.sol";
 import { DataStreamsV3 } from "src/libraries/DataStreamsV3.sol";
+import { OracleMath } from "src/libraries/OracleMath.sol";
 
 /// @notice Transaction-local Data Streams execution adapter for synthetic markets.
 contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
@@ -209,7 +210,7 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
             _select(verified, _markets[marketId], referenceTimestamp);
         if (matches == 0) revert ReportWindowUnavailable(referenceTimestamp);
         if (matches > 1) revert OverlappingReportWindows(referenceTimestamp, matches);
-        selected;
+        _normalize(selected.price, _markets[marketId].streamDecimals);
         revert ExecutionNotAvailable();
     }
 
@@ -229,6 +230,14 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
                 ++matches;
             }
         }
+    }
+
+    function _normalize(
+        int192 price,
+        uint8 decimals
+    ) internal pure returns (uint256) {
+        // Sign validation precedes this conversion for every report.
+        return OracleMath.normalizePrice(uint256(int256(price)), decimals);
     }
 
     function _referenceTimestamp(
