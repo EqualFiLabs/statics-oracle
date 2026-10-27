@@ -17,3 +17,16 @@ export async function readExecutionState({manifest,oracle,consumers,blockNumber,
   for(const consumer of consumers)if(await read("isAuthorizedConsumer",[consumer]))actual.authorizedConsumers.push(consumer);
   return actual;
 }
+
+/** Obtain the canonical receipt rather than trusting a local broadcast export. */
+export async function readDeploymentReceipt({manifest,transactionHash,env=process.env}) {
+  const {createPublicClient,http}=require("viem");
+  if(!/^0x[0-9a-fA-F]{64}$/.test(transactionHash))throw new Error("invalid deployment transaction");
+  const url=env[manifest.chainId===4663?"ROBINHOOD_MAINNET":"ROBINHOOD_TESTNET"];if(!url)throw new Error("configured Robinhood RPC required");
+  const client=createPublicClient({transport:http(url,{retryCount:0,timeout:15000})});
+  if(await client.getChainId()!==manifest.chainId)throw new Error("wrong execution chain");
+  const receipt=await client.getTransactionReceipt({hash:transactionHash});
+  const block=await client.getBlock({blockNumber:receipt.blockNumber});
+  if(block.hash!==receipt.blockHash)throw new Error("deployment receipt is no longer canonical");
+  return receipt;
+}
