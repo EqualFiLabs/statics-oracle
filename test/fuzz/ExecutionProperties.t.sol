@@ -92,4 +92,31 @@ contract ExecutionPropertiesTest is ExecutionTestBase {
         );
         oracle.verifyExecutionPrice(MARKET, reports);
     }
+
+    function testFuzzOutOfWindowCannotSupplyAlternativePrice(
+        uint32 start,
+        uint8 width
+    ) public {
+        DataStreamsV3.Report memory r = report();
+        r.validFromTimestamp = uint32(bound(start, 1, 950));
+        r.observationsTimestamp = r.validFromTimestamp + uint32(bound(width, 0, 30));
+        bytes[] memory reports = bundle(r);
+        vm.expectRevert(
+            abi.encodeWithSelector(StaticsExecutionOracle.ReportWindowUnavailable.selector, 990)
+        );
+        oracle.verifyExecutionPrice(MARKET, reports);
+    }
+
+    function testFuzzOtherAuthenticatedStreamNeverAccepted(
+        uint240 stream
+    ) public {
+        DataStreamsV3.Report memory r = report();
+        r.feedId = bytes32((uint256(3) << 240) | uint256(stream));
+        if (r.feedId == STREAM) r.feedId = bytes32((uint256(3) << 240) | 5678);
+        bytes[] memory reports = bundle(r);
+        vm.expectRevert(
+            abi.encodeWithSelector(StaticsExecutionOracle.WrongStreamId.selector, STREAM, r.feedId)
+        );
+        oracle.verifyExecutionPrice(MARKET, reports);
+    }
 }
