@@ -5,7 +5,7 @@ export function integer(value, name, min, max) {
 export function loadConfig(env=process.env) {
   const mode=env.RELAY_MODE??"production";
   if(!["production","qualification"].includes(mode))throw new Error("invalid relay mode");
-  const manifest=readManifest(env.EXECUTION_STREAM_MANIFEST??new URL("../../../config/robinhood-mainnet.streams.json",import.meta.url),{deployable:mode==="production"});
+  const manifest=readManifest(env.EXECUTION_STREAM_MANIFEST??new URL("../../config/robinhood-mainnet.streams.json",import.meta.url),{deployable:mode==="production"});
   const bundleSize=integer(env.RELAY_BUNDLE_SIZE??manifest.maxReportBundleSize,"bundle size",1,255);
   if(manifest.maxReportBundleSize!==null&&bundleSize>manifest.maxReportBundleSize)throw new Error("bundle exceeds reviewed bound");
   const bufferDepth=integer(env.RELAY_BUFFER_DEPTH??64,"buffer depth",bundleSize+1,4096);

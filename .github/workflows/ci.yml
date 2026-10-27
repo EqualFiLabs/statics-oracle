@@ -47,6 +47,13 @@ jobs:
           npm run check
           npm test
 
+      - name: Test signed report relay
+        working-directory: report-relay
+        run: |
+          npm ci --ignore-scripts
+          npm run check
+          npm test
+
       - name: Test execution manifest tooling
         run: node --test scripts/execution/*.test.mjs
 
