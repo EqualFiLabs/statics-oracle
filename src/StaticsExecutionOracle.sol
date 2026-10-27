@@ -184,6 +184,7 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
         MarketStatus status = _markets[marketId].status;
         if (status == MarketStatus.UNSET) revert UnsupportedMarket(marketId);
         if (status != MarketStatus.ENABLED) revert MarketNotEnabled(marketId, status);
+        _requireHealthySequencer();
         revert ExecutionNotAvailable();
     }
 
@@ -217,6 +218,18 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     }
 
     /// @dev Bound returndata copying and validate narrow round identifiers before trusting the shape.
+    function _requireHealthySequencer() internal view {
+        SequencerConfig memory config = _sequencerConfig;
+        if (config.feed == address(0)) revert SequencerNotConfigured();
+        (bool ok, int256 answer, uint256 startedAt) = _readSequencer(config.feed);
+        if (!ok || answer != 0 || startedAt == 0 || startedAt > block.timestamp) {
+            revert SequencerDown();
+        }
+        if (block.timestamp - startedAt <= config.gracePeriod) {
+            revert SequencerGracePeriod(startedAt, config.gracePeriod);
+        }
+    }
+
     function _readSequencer(
         address feed
     ) internal view returns (bool ok, int256 answer, uint256 startedAt) {
