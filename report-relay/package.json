@@ -1,0 +1,17 @@
+{
+  "name": "@equalfi/bucketperps-report-relay",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "check": "node --check src/config.mjs",
+    "test": "node --test",
+    "start": "node src/main.mjs"
+  },
+  "dependencies": {
+    "@chainlink/data-streams-sdk": "2.0.0"
+  }
+}
