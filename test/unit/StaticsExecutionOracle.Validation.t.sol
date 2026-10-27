@@ -32,4 +32,18 @@ contract ExecutionValidationTest is ExecutionTestBase {
         );
         oracle.verifyExecutionPrice(MARKET, reports);
     }
+
+    function testExpiredReportFailsIncludingNonmatchingCandidate() public {
+        DataStreamsV3.Report memory r = report();
+        r.validFromTimestamp = 950;
+        r.observationsTimestamp = 960;
+        r.expiresAt = 999;
+        bytes[] memory reports = new bytes[](2);
+        reports[0] = signed(report());
+        reports[1] = signed(r);
+        vm.expectRevert(
+            abi.encodeWithSelector(StaticsExecutionOracle.ReportExpired.selector, 999, 1000)
+        );
+        oracle.verifyExecutionPrice(MARKET, reports);
+    }
 }

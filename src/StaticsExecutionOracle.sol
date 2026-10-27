@@ -33,6 +33,7 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     error WrongStreamId(bytes32 expected, bytes32 actual);
     error InvalidReportPrice(int192 price);
     error InvalidReportTimestampOrder(uint32 validFromTimestamp, uint32 observationsTimestamp);
+    error ReportExpired(uint32 expiresAt, uint256 currentTimestamp);
     error ZeroAddress();
     error NoContractCode(address account);
     error InvalidBundleBound();
@@ -207,7 +208,7 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     function _decodeAndValidate(
         bytes memory body,
         ExecutionMarketConfig memory config
-    ) internal pure returns (DataStreamsV3.Report memory report) {
+    ) internal view returns (DataStreamsV3.Report memory report) {
         if (config.streamId == bytes32(0)) revert InvalidStreamId();
         report = DataStreamsV3.decode(body);
         if (report.feedId != config.streamId) revert WrongStreamId(config.streamId, report.feedId);
@@ -216,6 +217,9 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
             revert InvalidReportTimestampOrder(
                 report.validFromTimestamp, report.observationsTimestamp
             );
+        }
+        if (report.expiresAt < block.timestamp) {
+            revert ReportExpired(report.expiresAt, block.timestamp);
         }
         return report;
     }
