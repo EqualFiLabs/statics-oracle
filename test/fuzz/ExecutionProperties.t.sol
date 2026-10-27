@@ -119,4 +119,20 @@ contract ExecutionPropertiesTest is ExecutionTestBase {
         );
         oracle.verifyExecutionPrice(MARKET, reports);
     }
+
+    function testFuzzLaterObservationDoesNotInvalidateAnotherConsumer(
+        uint8 newerObservation
+    ) public {
+        newerObservation = uint8(bound(newerObservation, 0, 5));
+        DataStreamsV3.Report memory newer = report();
+        newer.observationsTimestamp += newerObservation;
+        oracle.verifyExecutionPrice(MARKET, bundle(newer));
+        assertEq(
+            oracle.verifyExecutionPrice(MARKET, bundle(report())).price1e18,
+            1_234_567_890_000_000_000
+        );
+        uint64 version = oracle.registryVersion();
+        oracle.verifyExecutionPrice(MARKET, bundle(newer));
+        assertEq(oracle.registryVersion(), version);
+    }
 }
