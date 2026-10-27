@@ -135,4 +135,13 @@ contract ExecutionPropertiesTest is ExecutionTestBase {
         oracle.verifyExecutionPrice(MARKET, bundle(newer));
         assertEq(oracle.registryVersion(), version);
     }
+
+    function testFuzzArbitraryUnauthenticatedBytesFailClosed(
+        bytes memory payload
+    ) public {
+        bytes[] memory reports = new bytes[](1);
+        reports[0] = payload;
+        vm.expectRevert(ExecutionVerifierMock.Unauthenticated.selector);
+        oracle.verifyExecutionPrice(MARKET, reports);
+    }
 }
