@@ -49,3 +49,32 @@ that skip does not satisfy the real-report gate. No deployment was broadcast.
 - 1.4 Reuse OpenZeppelin Ownable2Step, IAggregatorV3 and OracleMath.
   Supported stream precision is 0–18; higher precision fails instead of truncating.
   Existing NAV and sequencer contracts remain unchanged.
+
+## Checkpoint D and integration boundary
+
+The oracle, deployment tooling and dedicated signed-report relay are implemented.
+Full local validation passes: 168 Foundry tests, 39 observer-service tests,
+14 relay tests and five manifest/deployment-tooling tests. The default Foundry
+run skips twelve network/fixture-dependent tests. The separate pinned Robinhood
+execution run passes four checks and skips the signed-report test without its
+private capture. These are separate evidence sets.
+
+| Checkpoint D requirement | Evidence and status |
+| --- | --- |
+| Fetch current signed reports | Transport implemented; live subscription check pending credentials |
+| Keep secrets server-side | Credential isolation and HTTP authorization tests pass |
+| Preserve report bytes to the client | SDK transport through HTTP fixture tests pass byte for byte |
+| Prevent relay price authority | Consumer authenticates bodies and selects by transaction time; no relay price input |
+| Authenticate relay output independently | Mocked path and real forged-payload rejection pass; authentic capture still pending |
+| Avoid generic redistribution | Protected market-label-only endpoint; arbitrary feeds/history requests rejected |
+
+Checkpoint D remains conditional until current licensed reports traverse the relay
+and authenticate against the real subscription verifier. Unsigned ABI fixtures in
+relay tests establish transport behavior only. Candidate manifests cannot deploy
+until production parameters and stream authentication are qualified. No deployment
+or signing operation was performed.
+
+Implementation commits cover numbered tasks 1–16. The task 17 handoff documents
+the remaining live checkpoint and the exact task 18 consumer contract. The actual
+BucketPerps integration and tasks 18–26 remain open. See
+[the integration handoff](BUCKETPERPS_EXECUTION_HANDOFF.md).
