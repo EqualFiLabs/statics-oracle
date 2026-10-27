@@ -62,19 +62,19 @@ contract ExecutionAdminTest is ExecutionConfigTest {
         oracle.enableMarket(MARKET);
         oracle.setAuthorizedConsumer(address(this), true);
         vm.expectRevert(StaticsExecutionOracle.SequencerNotConfigured.selector);
-        oracle.verifyExecutionPrice(MARKET, new bytes[](0));
+        oracle.verifyExecutionPrice(MARKET, new bytes[](1));
         OracleFeedTestMock feed = new OracleFeedTestMock(0, "health");
         feed.setRoundData(1, 0, 990, 990, 1);
         oracle.setSequencerConfig(address(feed), 10);
         vm.expectRevert(
             abi.encodeWithSelector(StaticsExecutionOracle.SequencerGracePeriod.selector, 990, 10)
         );
-        oracle.verifyExecutionPrice(MARKET, new bytes[](0));
+        oracle.verifyExecutionPrice(MARKET, new bytes[](1));
         feed.setRoundData(1, 1, 900, 900, 1);
         vm.expectRevert(StaticsExecutionOracle.SequencerDown.selector);
-        oracle.verifyExecutionPrice(MARKET, new bytes[](0));
+        oracle.verifyExecutionPrice(MARKET, new bytes[](1));
         feed.setRoundData(1, 0, 0, 900, 1);
         vm.expectRevert(StaticsExecutionOracle.SequencerDown.selector);
-        oracle.verifyExecutionPrice(MARKET, new bytes[](0));
+        oracle.verifyExecutionPrice(MARKET, new bytes[](1));
     }
 }

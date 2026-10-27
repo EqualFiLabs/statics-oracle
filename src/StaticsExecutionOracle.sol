@@ -25,6 +25,10 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     error SequencerGracePeriod(uint256 recoveryStartedAt, uint32 gracePeriod);
     event SequencerConfigUpdated(address indexed feed, uint32 gracePeriod, uint64 indexed version);
 
+    error EmptyReportBundle();
+    error TooManyReports(uint256 supplied, uint256 maximum);
+    error VerifierResponseLengthMismatch(uint256 submitted, uint256 returned);
+    error WrongStreamId(bytes32 expected, bytes32 actual);
     error ZeroAddress();
     error NoContractCode(address account);
     error InvalidBundleBound();
@@ -178,12 +182,16 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
 
     function verifyExecutionPrice(
         bytes32 marketId,
-        bytes[] calldata
+        bytes[] calldata fullReports
     ) external virtual override returns (ExecutionPrice memory) {
         if (!_authorizedConsumers[msg.sender]) revert UnauthorizedConsumer(msg.sender);
         MarketStatus status = _markets[marketId].status;
         if (status == MarketStatus.UNSET) revert UnsupportedMarket(marketId);
         if (status != MarketStatus.ENABLED) revert MarketNotEnabled(marketId, status);
+        if (fullReports.length == 0) revert EmptyReportBundle();
+        if (fullReports.length > maxReportBundleSize) {
+            revert TooManyReports(fullReports.length, maxReportBundleSize);
+        }
         _requireHealthySequencer();
         revert ExecutionNotAvailable();
     }
