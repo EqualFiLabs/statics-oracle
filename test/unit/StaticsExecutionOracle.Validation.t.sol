@@ -66,4 +66,49 @@ contract ExecutionValidationTest is ExecutionTestBase {
         );
         oracle.verifyExecutionPrice(MARKET, reports);
     }
+
+    function testExactExpiryWindowAndFutureBoundariesAccept() public {
+        DataStreamsV3.Report memory r = report();
+        r.expiresAt = 1000;
+        r.validFromTimestamp = 970;
+        r.observationsTimestamp = 1000;
+        assertEq(
+            oracle.verifyExecutionPrice(MARKET, bundle(r)).price1e18, 1_234_567_890_000_000_000
+        );
+    }
+
+    function testChangingFeeBidAndAskDoesNotChangeExecution() public {
+        DataStreamsV3.Report memory r = report();
+        bytes[] memory first = bundle(r);
+        uint256 expected = oracle.verifyExecutionPrice(MARKET, first).price1e18;
+        r.bid = type(int192).min;
+        r.ask = type(int192).max;
+        r.nativeFee = type(uint192).max;
+        r.linkFee = type(uint192).max;
+        assertEq(oracle.verifyExecutionPrice(MARKET, bundle(r)).price1e18, expected);
+    }
+
+    function testNoncanonicalNarrowAbiWordFailsAfterAuthentication() public {
+        bytes memory body = abi.encode(report());
+        assembly ("memory-safe") { mstore(add(body, 64), shl(32, 1)) }
+        bytes[] memory reports = new bytes[](1);
+        reports[0] = hex"deadbeef";
+        verifier.accept(reports[0], body);
+        vm.expectRevert();
+        oracle.verifyExecutionPrice(MARKET, reports);
+    }
+
+    function testEveryNonmatchingBodyStillRequiresPositivePrice() public {
+        DataStreamsV3.Report memory r = report();
+        r.validFromTimestamp = 950;
+        r.observationsTimestamp = 960;
+        r.price = -1;
+        bytes[] memory reports = new bytes[](2);
+        reports[0] = signed(report());
+        reports[1] = signed(r);
+        vm.expectRevert(
+            abi.encodeWithSelector(StaticsExecutionOracle.InvalidReportPrice.selector, int192(-1))
+        );
+        oracle.verifyExecutionPrice(MARKET, reports);
+    }
 }
