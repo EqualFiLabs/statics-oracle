@@ -14,6 +14,7 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
 
     mapping(address consumer => bool enabled) private _authorizedConsumers;
     error UnauthorizedConsumer(address consumer);
+    error MarketNotEnabled(bytes32 marketId, MarketStatus status);
     event AuthorizedConsumerUpdated(address indexed consumer, bool enabled, uint64 indexed version);
 
     error ZeroAddress();
@@ -168,9 +169,13 @@ contract StaticsExecutionOracle is Ownable2Step, IStaticsExecutionOracle {
     }
 
     function verifyExecutionPrice(
-        bytes32,
+        bytes32 marketId,
         bytes[] calldata
     ) external virtual override returns (ExecutionPrice memory) {
+        if (!_authorizedConsumers[msg.sender]) revert UnauthorizedConsumer(msg.sender);
+        MarketStatus status = _markets[marketId].status;
+        if (status == MarketStatus.UNSET) revert UnsupportedMarket(marketId);
+        if (status != MarketStatus.ENABLED) revert MarketNotEnabled(marketId, status);
         revert ExecutionNotAvailable();
     }
 

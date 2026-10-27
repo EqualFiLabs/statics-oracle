@@ -21,4 +21,18 @@ contract ExecutionAdminTest is ExecutionConfigTest {
         oracle.setAuthorizedConsumer(address(this), false);
         assertFalse(oracle.isAuthorizedConsumer(address(this)));
     }
+
+    function testUnauthorizedRequestStopsBeforeMarketAndVerifier() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StaticsExecutionOracle.UnauthorizedConsumer.selector, address(this)
+            )
+        );
+        oracle.verifyExecutionPrice(MARKET, new bytes[](0));
+        oracle.setAuthorizedConsumer(address(this), true);
+        vm.expectRevert(
+            abi.encodeWithSelector(StaticsExecutionOracle.UnsupportedMarket.selector, MARKET)
+        );
+        oracle.verifyExecutionPrice(MARKET, new bytes[](0));
+    }
 }
