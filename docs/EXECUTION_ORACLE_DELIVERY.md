@@ -23,6 +23,14 @@ configuration changes preserve the registry version. Existing NAV sequencer test
 also pass. Verification remains unavailable until the authenticated selection
 path is complete; this checkpoint is not an execution or deployment claim.
 
+## Checkpoint B
+
+The complete authenticated path passes local mocked-verifier execution tests:
+unique inclusive selection, unordered input, nonmatching duplicates, matching
+duplicate rejection, metadata and normalized consensus price. Every body is
+validated before success, and no price or observation watermark is stored.
+These tests do not establish real Chainlink subscription or deployment behavior.
+
 ## Progress
 
 - 1.1–1.3 Consumer ABI, bulk verifier ABI and V3 types defined.
